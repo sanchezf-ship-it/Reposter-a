@@ -489,33 +489,39 @@ function calcularCosto(prod) {
 
 // ── INICIO ──
 function renderInicio() {
-  const ahora = new Date();
-  const mesAct = ahora.getMonth()+1, anioAct = ahora.getFullYear();
-  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  document.getElementById('stat-mes-label').textContent = meses[mesAct-1]+' '+anioAct;
+  const _now = new Date();
+  const _mes = _now.getMonth()+1;
+  const _anio = _now.getFullYear();
+  const _meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('stat-mes-label').textContent = _meses[_mes-1]+' '+_anio;
 
-  const hoyStr = today();
-  const ahora2 = new Date();
-  const vHoy = DATA.ventas.filter(v => sameDay(v['Fecha'], ahora2.getFullYear(), ahora2.getMonth()+1, ahora2.getDate()));
-  const ingHoy = vHoy.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
-  const ganHoy = vHoy.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
-  document.getElementById('stat-hoy-ing').textContent = fmt(ingHoy);
-  document.getElementById('stat-hoy-gan').textContent = fmt(ganHoy);
-  document.getElementById('stat-hoy-cant').textContent = vHoy.length+' ventas';
-  document.getElementById('stat-hoy-margin').textContent = ingHoy>0 ? Math.round(ganHoy/ingHoy*100)+'% margen' : '—';
-
-  const vMes = DATA.ventas.filter(v=>{
-    const p=v['Fecha']?.split('/'); return p&&Number(p[1])===mesAct&&Number(p[2])===anioAct;
+  const _vHoy = DATA.ventas.filter(v => {
+    if (!v['Fecha']) return false;
+    const _p = v['Fecha'].split('T')[0].split('-');
+    return _p.length===3 && Number(_p[0])===_anio && Number(_p[1])===_mes && Number(_p[2])===_now.getDate();
   });
-  const ingMes = vMes.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
-  const ganMes = vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
-  document.getElementById('stat-mes-ing').textContent = fmt(ingMes);
-  document.getElementById('stat-mes-gan').textContent = fmt(ganMes);
-  document.getElementById('stat-mes-dolar').textContent = vMes.length + ' ventas';
+  const _ingHoy = _vHoy.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
+  const _ganHoy = _vHoy.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
+  document.getElementById('stat-hoy-ing').textContent = fmt(_ingHoy);
+  document.getElementById('stat-hoy-gan').textContent = fmt(_ganHoy);
+  document.getElementById('stat-hoy-cant').textContent = _vHoy.length+' ventas';
+  document.getElementById('stat-hoy-margin').textContent = _ingHoy>0 ? Math.round(_ganHoy/_ingHoy*100)+'% margen' : '—';
+
+  const _vMes = DATA.ventas.filter(v => {
+    if (!v['Fecha']) return false;
+    const _p = v['Fecha'].split('T')[0].split('-');
+    return _p.length===3 && Number(_p[0])===_anio && Number(_p[1])===_mes;
+  });
+  const _ingMes = _vMes.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
+  const _ganMes = _vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
+  document.getElementById('stat-mes-ing').textContent = fmt(_ingMes);
+  document.getElementById('stat-mes-gan').textContent = fmt(_ganMes);
+  document.getElementById('stat-mes-dolar').textContent = _vMes.length+' ventas';
   if (document.getElementById('stat-mes-margen')) {
-    document.getElementById('stat-mes-margen').textContent = ingMes > 0 ? Math.round(ganMes/ingMes*100)+'% margen' : '—';
+    document.getElementById('stat-mes-margen').textContent = _ingMes>0 ? Math.round(_ganMes/_ingMes*100)+'% margen' : '—';
   }
 }
+
 
 // ── PRODUCTOS ──
 function renderProductos(f='') {
