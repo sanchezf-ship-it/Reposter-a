@@ -514,7 +514,7 @@ function calcularCosto(prod) {
     const mp = DATA.materias.find(m => m['Nombre']?.toLowerCase()===ing['Ingrediente']?.toLowerCase());
     if (mp) { t += (Number(mp['Precio por unidad ($)'])||0) * (Number(ing['Cantidad'])||0); continue; }
     const pk = DATA.packaging.find(p => p['Nombre']?.toLowerCase()===ing['Ingrediente']?.toLowerCase());
-    if (pk) t += (Number(pk['Precio ($)'])||0) * (Number(ing['Cantidad'])||0);
+    if (pk) t += (Number(pk['Precio $ unitario']||pk['Precio ($)'])||0) * (Number(ing['Cantidad'])||0);
   }
   return t;
 }
@@ -528,7 +528,7 @@ function renderPackaging(f='') {
   if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin packaging cargado</div>'; return; }
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(m=>`
     <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||'u'} · ${m['Última actualización']||''}</div></div>
-    <div style="text-align:right;"><div class="price">${fmt(m['Precio ($)'])}</div>
+    <div style="text-align:right;"><div class="price">${fmt(m['Precio $ unitario']||m['Precio ($)'])}</div>
     <button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
   ).join('') + '</div>';
 }
@@ -539,7 +539,7 @@ function editarPackaging(nombre) {
   if (!m) return;
   document.getElementById('modal-packaging-title').textContent = 'Editar: '+m['Nombre'];
   document.getElementById('npk-nombre').value = m['Nombre'];
-  document.getElementById('npk-precio').value = m['Precio ($)'];
+  document.getElementById('npk-precio').value = m['Precio $ unitario']||m['Precio ($)'];
   document.getElementById('npk-unidad').value = m['Unidad']||'u';
   openModal('modal-packaging');
 }
@@ -550,7 +550,7 @@ async function guardarPackaging() {
   const unidad = document.getElementById('npk-unidad').value;
   if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
   const idx = DATA.packaging.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
-  const obj = {'Nombre':nombre,'Precio ($)':Number(precio),'Unidad':unidad,'Última actualización':today()};
+  const obj = {'Nombre':nombre,'Precio $ unitario':Number(precio),'Unidad':unidad,'Ult. actualización':today()};
   if (idx>=0) {
     DATA.packaging[idx]=obj;
     await saveToSheet('Packaging', 'actualizar', obj, 'Nombre', nombre);
