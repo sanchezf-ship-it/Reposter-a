@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Repostería — Acceso</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAF8F5; --surface: #FFFFFF; --border: #E8E2D9;
+  --text: #1A1612; --text2: #6B6257; --text3: #A89F94;
+  --accent: #2D6A4F; --accent-light: #D8EDD6;
+  --danger: #C0392B; --danger-light: #FDECEA;
+  --shadow: 0 2px 8px rgba(26,22,18,0.08);
+  --radius: 14px; --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px;
+}
+.login-wrap { width: 100%; max-width: 380px; }
+.logo {
+  text-align: center; margin-bottom: 40px;
+}
+.logo .emoji { font-size: 48px; display: block; margin-bottom: 10px; }
+.logo h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px; font-weight: 400; color: var(--text);
+}
+.logo p { font-size: 14px; color: var(--text3); margin-top: 4px; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px 24px;
+  box-shadow: var(--shadow);
+}
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--text2); margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.form-group input {
+  width: 100%; padding: 13px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 15px;
+  background: var(--bg); color: var(--text);
+  font-family: 'DM Sans', sans-serif; transition: border-color 0.15s;
+}
+.form-group input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45,106,79,0.1);
+}
+.btn {
+  width: 100%; padding: 14px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius-sm); font-size: 15px;
+  font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s; margin-top: 6px;
+}
+.btn:active { transform: scale(0.98); background: #245c43; }
+.error-msg {
+  background: var(--danger-light); color: var(--danger);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  font-size: 13px; margin-top: 12px; display: none; text-align: center;
+}
+.version { text-align: center; font-size: 12px; color: var(--text3); margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="logo">
+    <span class="emoji">🧁</span>
+    <h1>Mi Repostería</h1>
+    <p>Panel de gestión</p>
+  </div>
+  <div class="card">
+    <div class="form-group">
+      <label>Usuario</label>
+      <input type="text" id="usuario" placeholder="tu usuario" autocomplete="username" autocapitalize="none">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="btn" onclick="login()">Ingresar</button>
+    <div class="error-msg" id="error-msg">Usuario o contraseña incorrectos</div>
+  </div>
+  <div class="version">v1.0 · 2026</div>
+</div>
+
+<script>
+const SHEET_ID = '1xqwQmeswQrIfcKVuSnm3M_l5IiSa7Z2GSjgLrEmw1DI';
+
+async function login() {
+  const usuario = document.getElementById('usuario').value.trim().toLowerCase();
+  const password = document.getElementById('password').value;
+  const errEl = document.getElementById('error-msg');
+  errEl.style.display = 'none';
+
+  if (!usuario || !password) {
+    errEl.textContent = 'Completá usuario y contraseña';
+    errEl.style.display = 'block'; return;
+  }
+
+  try {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Usuarios`);
+    const text = await res.text();
+    const json = JSON.parse(text.replace(/^[^\{]+/, '').replace(/[^\}]+$/, ''));
+    const rows = json.table.rows || [];
+    const cols = json.table.cols.map(c => c.label);
+
+    const user = rows.find(r => {
+      const u = r.c[cols.indexOf('Usuario')]?.v?.toString().trim().toLowerCase();
+      const p = r.c[cols.indexOf('Contraseña')]?.v?.toString().trim();
+      return u === usuario && p === password;
+    });
+
+    if (user) {
+      const rol = user.c[cols.indexOf('Rol')]?.v || 'empleado';
+      const nombre = user.c[cols.indexOf('Nombre')]?.v || usuario;
+      sessionStorage.setItem('auth', JSON.stringify({ usuario, nombre, rol, ts: Date.now() }));
+      window.location.href = 'app.html';
+    } else {
+      errEl.textContent = 'Usuario o contraseña incorrectos';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = 'Error de conexión. Intentá de nuevo.';
+    errEl.style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Repostería — Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAF8F5; --surface: #FFFFFF; --surface2: #F3F0EB;
+  --border: #E8E2D9; --text: #1A1612; --text2: #6B6257; --text3: #A89F94;
+  --accent: #2D6A4F; --accent-light: #D8EDD6;
+  --gold: #C4922A; --gold-light: #FBF3E2;
+  --danger: #C0392B; --danger-light: #FDECEA;
+  --shadow: 0 1px 3px rgba(26,22,18,0.08), 0 4px 12px rgba(26,22,18,0.04);
+  --radius: 12px; --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+
+.header { background: var(--accent); padding: 16px 20px 12px; position: sticky; top: 0; z-index: 100; }
+.header-top { display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-family: 'DM Serif Display', serif; color: #fff; font-size: 20px; font-weight: 400; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.user-chip { background: rgba(255,255,255,0.15); border-radius: 99px; padding: 5px 12px; font-size: 12px; color: rgba(255,255,255,0.9); cursor: pointer; }
+.dolar-chip { background: rgba(255,255,255,0.12); border-radius: 99px; padding: 5px 10px; font-size: 12px; color: #fff; }
+.dot { display: inline-block; width: 6px; height: 6px; background: #A8EDBC; border-radius: 50%; margin-right: 4px; }
+
+.nav { display: flex; overflow-x: auto; gap: 0; background: var(--surface); border-bottom: 1px solid var(--border); scrollbar-width: none; }
+.nav::-webkit-scrollbar { display: none; }
+.nav-btn { flex: none; padding: 12px 14px; font-size: 13px; font-weight: 500; background: none; border: none; border-bottom: 2.5px solid transparent; color: var(--text3); cursor: pointer; white-space: nowrap; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 5px; }
+.nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav-btn.hidden { display: none; }
+
+.screen { display: none; padding: 20px 16px 100px; max-width: 480px; margin: 0 auto; }
+.screen.active { display: block; }
+
+.section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 12px; margin-top: 24px; }
+.section-label:first-child { margin-top: 0; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+.stat .lbl { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.stat .val { font-size: 22px; font-weight: 600; line-height: 1; }
+.stat .val.green { color: var(--accent); }
+.stat .val.gold { color: var(--gold); }
+.stat .sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+.list-item { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.list-item:last-child { border-bottom: none; padding-bottom: 0; }
+.list-item .name { font-size: 14px; font-weight: 500; }
+.list-item .meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.list-item .price { font-size: 15px; font-weight: 600; }
+.list-item .margin { font-size: 12px; color: var(--accent); font-weight: 500; }
+.list-item .margin.neg { color: var(--danger); }
+
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.form-group input, .form-group select {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 15px; background: var(--surface);
+  color: var(--text); font-family: 'DM Sans', sans-serif; transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,106,79,0.1); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.btn { width: 100%; padding: 14px; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:active { background: #245c43; transform: scale(0.98); }
+.btn-secondary { background: none; color: var(--accent); border: 1.5px solid var(--accent); margin-top: 8px; }
+.btn-danger { background: var(--danger-light); color: var(--danger); margin-top: 8px; }
+.btn-sm { width: auto; padding: 7px 14px; font-size: 13px; }
+
+.badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
+.badge-green { background: var(--accent-light); color: var(--accent); }
+.badge-gold { background: var(--gold-light); color: var(--gold); }
+.badge-red { background: var(--danger-light); color: var(--danger); }
+
+.venta-item { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.remove-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 20px; padding: 8px 4px; }
+
+.total-bar { background: var(--accent); border-radius: var(--radius); padding: 16px; display: flex; justify-content: space-between; align-items: center; margin: 16px 0; }
+.total-bar .lbl { font-size: 12px; color: rgba(255,255,255,0.7); }
+.total-bar .amt { font-size: 22px; font-weight: 700; color: #fff; }
+.total-bar .dolar { font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 2px; }
+
+.resumen-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; padding: 10px 4px; border-bottom: 1px solid var(--border); align-items: center; }
+.resumen-row.header { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; }
+.resumen-row .mes { font-size: 13px; font-weight: 500; }
+.resumen-row .num { font-size: 13px; text-align: right; }
+.resumen-row .gan { font-size: 13px; font-weight: 600; color: var(--accent); text-align: right; }
+.resumen-row.current { background: var(--accent-light); border-radius: var(--radius-sm); margin: 0 -4px; padding: 10px 8px; }
+
+.dolar-panel { background: linear-gradient(135deg, #1a3a2a 0%, #2D6A4F 100%); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; color: #fff; }
+.dolar-panel .title { font-size: 12px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.dolar-panel .rate { font-family: 'DM Serif Display', serif; font-size: 36px; }
+.dolar-panel .updated { font-size: 11px; opacity: 0.6; margin-top: 6px; }
+.dolar-panel .sub-rates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.dolar-panel .sub-rate .lbl { font-size: 11px; opacity: 0.6; }
+.dolar-panel .sub-rate .val { font-size: 18px; font-weight: 600; margin-top: 2px; }
+
+.ing-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.ing-row select { flex: 2; }
+.ing-row input { flex: 1; }
+.ing-row .unit-lbl { font-size: 12px; color: var(--text3); min-width: 28px; }
+
+.cost-preview { background: var(--gold-light); border: 1px solid #E8D5A0; border-radius: var(--radius-sm); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin: 14px 0; }
+.cost-preview .lbl { font-size: 13px; color: var(--gold); font-weight: 500; }
+.cost-preview .val { font-size: 20px; font-weight: 700; color: var(--gold); }
+
+.search-box { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; }
+.search-box input { border: none; background: none; font-size: 15px; flex: 1; outline: none; font-family: 'DM Sans', sans-serif; color: var(--text); }
+
+.fab { position: fixed; bottom: 24px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 26px; cursor: pointer; box-shadow: 0 4px 16px rgba(45,106,79,0.35); display: flex; align-items: center; justify-content: center; }
+
+.modal-bg { position: fixed; inset: 0; background: rgba(26,22,18,0.5); z-index: 200; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-bg.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; padding: 24px 20px 40px; max-height: 92vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s ease; }
+.modal-bg.open .modal { transform: translateY(0); }
+.modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+.modal h2 { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; margin-bottom: 20px; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: #fff; padding: 12px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; transition: transform 0.3s; z-index: 999; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--accent); }
+.toast.error { background: var(--danger); }
+
+.loading { text-align: center; padding: 40px; color: var(--text3); font-size: 14px; }
+.spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.user-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.user-row:last-child { border-bottom: none; }
+.user-role { font-size: 11px; padding: 3px 8px; border-radius: 99px; font-weight: 600; }
+.role-admin { background: var(--accent-light); color: var(--accent); }
+.role-empleado { background: var(--gold-light); color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<div class="header">
+  <div class="header-top">
+    <h1>🧁 Mi Repostería</h1>
+    <div class="header-right">
+      <div class="dolar-chip"><span class="dot"></span>MEP <span id="header-mep">...</span></div>
+      <div class="user-chip" id="user-chip" onclick="showScreen('config')">👤 <span id="user-name">...</span></div>
+    </div>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showScreen('inicio')" data-screen="inicio">🏠 Inicio</button>
+  <button class="nav-btn" onclick="showScreen('ventas')" data-screen="ventas">🛒 Ventas</button>
+  <button class="nav-btn" onclick="showScreen('productos')" data-screen="productos">🏷️ Productos</button>
+  <button class="nav-btn admin-only" onclick="showScreen('recetas')" data-screen="recetas">📋 Recetas</button>
+  <button class="nav-btn admin-only" onclick="showScreen('materias')" data-screen="materias">📦 Mat. primas</button>
+  <button class="nav-btn" onclick="showScreen('resumen')" data-screen="resumen">📊 Resumen</button>
+  <button class="nav-btn admin-only" onclick="showScreen('config')" data-screen="config">⚙️ Config</button>
+</nav>
+
+<!-- INICIO -->
+<div id="screen-inicio" class="screen active">
+  <div class="stats-grid" style="margin-top:4px;">
+    <div class="stat"><div class="lbl">Ventas hoy</div><div class="val green" id="stat-hoy-ing">$0</div><div class="sub" id="stat-hoy-cant">0 ventas</div></div>
+    <div class="stat"><div class="lbl">Ganancia hoy</div><div class="val green" id="stat-hoy-gan">$0</div><div class="sub" id="stat-hoy-margin">—</div></div>
+    <div class="stat"><div class="lbl">Este mes</div><div class="val" id="stat-mes-ing">$0</div><div class="sub" id="stat-mes-label">...</div></div>
+    <div class="stat"><div class="lbl">Ganancia neta</div><div class="val gold" id="stat-mes-gan">$0</div><div class="sub" id="stat-mes-dolar">— USD MEP</div></div>
+  </div>
+  <div class="section-label">Acciones rápidas</div>
+  <div class="card" style="padding:4px 0;">
+    <div class="list-item" style="padding:14px 16px;"><div><div class="name">Cargar venta</div><div class="meta">Registrá lo que vendiste</div></div><button class="btn btn-primary btn-sm" onclick="showScreen('ventas')">Ir →</button></div>
+    <div class="list-item admin-only" style="padding:14px 16px;"><div><div class="name">Actualizar materia prima</div><div class="meta">Cuando cambia el precio</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('materias')">Ir →</button></div>
+    <div class="list-item admin-only" style="padding:14px 16px;border:none;"><div><div class="name">Nuevo producto</div><div class="meta">Agregar a la lista</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('productos');setTimeout(()=>openModal('modal-producto'),200)">Ir →</button></div>
+  </div>
+</div>
+
+<!-- VENTAS -->
+<div id="screen-ventas" class="screen">
+  <div class="section-label">Productos vendidos</div>
+  <div id="venta-items-list"></div>
+  <button class="btn btn-secondary" onclick="addVentaItem()">+ Agregar producto</button>
+  <div class="total-bar">
+    <div><div class="lbl">Total ingreso</div><div class="amt" id="venta-total-ing">$0</div></div>
+    <div style="text-align:right;"><div class="lbl">Ganancia</div><div class="amt" id="venta-total-gan">$0</div><div class="dolar" id="venta-dolar"></div></div>
+  </div>
+  <div class="form-group"><label>Método de pago</label>
+    <select id="venta-metodo"><option>Transferencia</option><option>Efectivo</option><option>Mercado Pago</option><option>Débito</option><option>Crédito</option></select>
+  </div>
+  <button class="btn btn-primary" onclick="guardarVenta()">Guardar venta</button>
+</div>
+
+<!-- PRODUCTOS -->
+<div id="screen-productos" class="screen">
+  <div class="search-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Buscar producto..." oninput="filtrarProductos(this.value)">
+  </div>
+  <div id="productos-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+  <button class="fab admin-fab" onclick="openModal('modal-producto')">+</button>
+</div>
+
+<!-- RECETAS -->
+<div id="screen-recetas" class="screen">
+  <div class="search-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Buscar receta..." oninput="filtrarRecetas(this.value)">
+  </div>
+  <div id="recetas-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+  <button class="fab" onclick="openModal('modal-receta')">+</button>
+</div>
+
+<!-- MATERIAS PRIMAS -->
+<div id="screen-materias" class="screen">
+  <div class="search-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Buscar ingrediente..." oninput="filtrarMaterias(this.value)">
+  </div>
+  <div id="materias-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+  <button class="fab" onclick="openModal('modal-materia')">+</button>
+</div>
+
+<!-- RESUMEN -->
+<div id="screen-resumen" class="screen">
+  <div class="dolar-panel">
+    <div class="title">Dólar MEP · Venta</div>
+    <div class="rate" id="dolar-rate">Cargando...</div>
+    <div class="updated" id="dolar-updated"></div>
+    <div class="sub-rates">
+      <div class="sub-rate"><div class="lbl">Compra</div><div class="val" id="dolar-compra">—</div></div>
+      <div class="sub-rate"><div class="lbl">Spread</div><div class="val" id="dolar-spread">—</div></div>
+    </div>
+  </div>
+  <div class="section-label">Jun 2026 — Jun 2036</div>
+  <div class="resumen-row header">
+    <div>Mes</div><div style="text-align:right">Ingresos</div><div style="text-align:right">Gan. $</div><div style="text-align:right">Gan. USD</div>
+  </div>
+  <div id="resumen-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+</div>
+
+<!-- CONFIG -->
+<div id="screen-config" class="screen">
+  <div class="section-label">Mi cuenta</div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+      <div style="width:48px;height:48px;background:var(--accent-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;">👤</div>
+      <div><div style="font-weight:600;font-size:16px;" id="cfg-nombre">—</div><div style="font-size:13px;color:var(--text3);" id="cfg-rol">—</div></div>
+    </div>
+    <button class="btn btn-danger" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+
+  <div class="admin-only">
+    <div class="section-label">Usuarios</div>
+    <div class="card" style="padding:4px 16px;" id="usuarios-list">
+      <div class="loading"><div class="spinner"></div>Cargando...</div>
+    </div>
+    <button class="btn btn-secondary" onclick="openModal('modal-usuario')">+ Nuevo usuario</button>
+  </div>
+
+  <div class="section-label" style="margin-top:24px;">Acerca de</div>
+  <div class="card">
+    <div style="font-size:13px;color:var(--text2);line-height:1.7;">
+      <div>Versión 1.0 · 2026</div>
+      <div style="margin-top:4px;">Base de datos: Google Sheets</div>
+      <div style="margin-top:4px;">Dólar: Bluelytics API</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Producto -->
+<div id="modal-producto" class="modal-bg" onclick="if(event.target===this)closeModal('modal-producto')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Nuevo producto</h2>
+    <div class="form-group"><label>Nombre</label><input type="text" id="np-nombre" placeholder="Ej: Rogel mega"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Precio venta ($)</label><input type="number" id="np-precio" placeholder="0" oninput="document.getElementById('np-rev').placeholder=Math.round(this.value*0.8)||'Auto'"></div>
+      <div class="form-group"><label>Precio revendedor ($)</label><input type="number" id="np-rev" placeholder="Auto (−20%)"></div>
+    </div>
+    <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
+  </div>
+</div>
+
+<!-- MODAL: Materia prima -->
+<div id="modal-materia" class="modal-bg" onclick="if(event.target===this)closeModal('modal-materia')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modal-materia-title">Materia prima</h2>
+    <div class="form-group"><label>Nombre</label><input type="text" id="nm-nombre" placeholder="Ej: Chocolate Águila"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Precio ($)</label><input type="number" id="nm-precio" placeholder="0"></div>
+      <div class="form-group"><label>Unidad</label><select id="nm-unidad"><option value="kg">kg</option><option value="l">l</option><option value="u">u</option></select></div>
+    </div>
+    <button class="btn btn-primary" onclick="guardarMateria()">Guardar</button>
+  </div>
+</div>
+
+<!-- MODAL: Receta -->
+<div id="modal-receta" class="modal-bg" onclick="if(event.target===this)closeModal('modal-receta')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Receta</h2>
+    <div class="form-group"><label>Producto</label>
+      <select id="nr-producto"><option value="">— Elegir —</option></select>
+    </div>
+    <div class="section-label" style="margin-top:16px;">Ingredientes</div>
+    <div id="nr-ings-list"></div>
+    <button class="btn btn-secondary" onclick="addIngRow()">+ Ingrediente</button>
+    <div class="cost-preview" style="margin-top:14px;"><span class="lbl">Costo estimado</span><span class="val" id="nr-costo-preview">$0</span></div>
+    <button class="btn btn-primary" onclick="guardarReceta()">Guardar receta</button>
+  </div>
+</div>
+
+<!-- MODAL: Usuario -->
+<div id="modal-usuario" class="modal-bg" onclick="if(event.target===this)closeModal('modal-usuario')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Nuevo usuario</h2>
+    <div class="form-group"><label>Nombre completo</label><input type="text" id="nu-nombre" placeholder="Ej: María González"></div>
+    <div class="form-group"><label>Usuario</label><input type="text" id="nu-usuario" placeholder="Ej: maria" autocapitalize="none"></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="nu-pass" placeholder="••••••••"></div>
+    <div class="form-group"><label>Rol</label>
+      <select id="nu-rol"><option value="empleado">Empleado (solo ventas)</option><option value="admin">Admin (acceso completo)</option></select>
+    </div>
+    <button class="btn btn-primary" onclick="guardarUsuario()">Crear usuario</button>
+    <p style="font-size:12px;color:var(--text3);margin-top:12px;text-align:center;">El usuario se guarda en tu Google Sheet en la hoja "Usuarios"</p>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1xqwQmeswQrIfcKVuSnm3M_l5IiSa7Z2GSjgLrEmw1DI';
+const BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=`;
+
+let DATA = { materias:[], productos:[], recetas:[], ventas:[], usuarios:[] };
+let dolarMEP = null;
+let currentUser = null;
+
+// ── AUTH ──
+function checkAuth() {
+  const auth = sessionStorage.getItem('auth');
+  if (!auth) { window.location.href = 'index.html'; return; }
+  currentUser = JSON.parse(auth);
+  // Sesión expira en 8 horas
+  if (Date.now() - currentUser.ts > 8 * 3600 * 1000) { cerrarSesion(); return; }
+  document.getElementById('user-name').textContent = currentUser.nombre;
+  document.getElementById('cfg-nombre').textContent = currentUser.nombre;
+  document.getElementById('cfg-rol').textContent = currentUser.rol === 'admin' ? 'Administrador' : 'Empleado';
+  // Ocultar elementos admin si es empleado
+  if (currentUser.rol !== 'admin') {
+    document.querySelectorAll('.admin-only, .admin-fab').forEach(el => el.style.display = 'none');
+  }
+}
+
+function cerrarSesion() {
+  sessionStorage.removeItem('auth');
+  window.location.href = 'index.html';
+}
+
+// ── HELPERS ──
+const fmt = n => (!n && n!==0) ? '—' : '$' + Math.round(Number(n)).toLocaleString('es-AR');
+const fmtUSD = n => !n ? '—' : 'U$S ' + Number(n).toFixed(0);
+const today = () => new Date().toLocaleDateString('es-AR');
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  const btn = document.querySelector(`[data-screen="${name}"]`);
+  if (btn) btn.classList.add('active');
+  if (name==='productos') renderProductos();
+  if (name==='recetas') renderRecetas();
+  if (name==='materias') renderMaterias();
+  if (name==='resumen') renderResumen();
+  if (name==='inicio') renderInicio();
+  if (name==='ventas') initVentas();
+  if (name==='config') renderUsuarios();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── DÓLAR ──
+async function cargarDolar() {
+  try {
+    const res = await fetch('https://api.bluelytics.com.ar/v2/latest');
+    const d = await res.json();
+    const venta = d.blue?.value_sell;
+    const compra = d.blue?.value_buy;
+    if (venta) {
+      dolarMEP = venta;
+      document.getElementById('header-mep').textContent = '$' + Math.round(venta).toLocaleString('es-AR');
+      document.getElementById('dolar-rate').textContent = '$' + Math.round(venta).toLocaleString('es-AR');
+      document.getElementById('dolar-compra').textContent = '$' + Math.round(compra).toLocaleString('es-AR');
+      document.getElementById('dolar-spread').textContent = ((venta-compra)/venta*100).toFixed(1)+'%';
+      document.getElementById('dolar-updated').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    }
+  } catch(e) { document.getElementById('header-mep').textContent = '—'; }
+}
+
+// ── SHEET ──
+function parseGviz(raw) {
+  const json = JSON.parse(raw.replace(/^[^\{]+/,'').replace(/[^\}]+$/,''));
+  const cols = json.table.cols.map(c => c.label);
+  return (json.table.rows||[]).map(r => Object.fromEntries(cols.map((c,i) => [c, r.c[i]?.v??''])));
+}
+
+async function cargarSheet(hoja) {
+  try {
+    const res = await fetch(BASE + encodeURIComponent(hoja));
+    return parseGviz(await res.text());
+  } catch(e) { return []; }
+}
+
+async function cargarTodo() {
+  const [mp, prod, rec, ven] = await Promise.all([
+    cargarSheet('MPrimas'), cargarSheet('Productos'),
+    cargarSheet('Recetas'), cargarSheet('Ventas'),
+  ]);
+  DATA.materias  = mp.filter(r=>r['Nombre']);
+  DATA.productos = prod.filter(r=>r['Nombre']);
+  DATA.recetas   = rec.filter(r=>r['Producto']);
+  DATA.ventas    = ven.filter(r=>r['Producto']);
+  renderInicio();
+  // Poblar selector receta
+  const sel = document.getElementById('nr-producto');
+  DATA.productos.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p['Nombre']; o.textContent = p['Nombre']; sel.appendChild(o);
+  });
+}
+
+function calcularCosto(prod) {
+  const ings = DATA.recetas.filter(r => r['Producto']===prod);
+  if (!ings.length) return null;
+  let t = 0;
+  for (const ing of ings) {
+    const mp = DATA.materias.find(m => m['Nombre']?.toLowerCase()===ing['Ingrediente']?.toLowerCase());
+    if (mp) t += (Number(mp['Precio por unidad ($)'])||0) * (Number(ing['Cantidad'])||0);
+  }
+  return t;
+}
+
+// ── INICIO ──
+function renderInicio() {
+  const ahora = new Date();
+  const mesAct = ahora.getMonth()+1, anioAct = ahora.getFullYear();
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('stat-mes-label').textContent = meses[mesAct-1]+' '+anioAct;
+
+  const hoyStr = today();
+  const vHoy = DATA.ventas.filter(v=>v['Fecha']===hoyStr);
+  const ingHoy = vHoy.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
+  const ganHoy = vHoy.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
+  document.getElementById('stat-hoy-ing').textContent = fmt(ingHoy);
+  document.getElementById('stat-hoy-gan').textContent = fmt(ganHoy);
+  document.getElementById('stat-hoy-cant').textContent = vHoy.length+' ventas';
+  document.getElementById('stat-hoy-margin').textContent = ingHoy>0 ? Math.round(ganHoy/ingHoy*100)+'% margen' : '—';
+
+  const vMes = DATA.ventas.filter(v=>{
+    const p=v['Fecha']?.split('/'); return p&&Number(p[1])===mesAct&&Number(p[2])===anioAct;
+  });
+  const ingMes = vMes.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
+  const ganMes = vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
+  document.getElementById('stat-mes-ing').textContent = fmt(ingMes);
+  document.getElementById('stat-mes-gan').textContent = fmt(ganMes);
+  document.getElementById('stat-mes-dolar').textContent = dolarMEP&&ganMes ? fmtUSD(ganMes/dolarMEP)+' USD MEP' : '— USD MEP';
+}
+
+// ── PRODUCTOS ──
+function renderProductos(f='') {
+  const el = document.getElementById('productos-list');
+  const list = DATA.productos.filter(p=>!f||p['Nombre']?.toLowerCase().includes(f.toLowerCase()));
+  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
+  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(p=>{
+    const c = calcularCosto(p['Nombre']);
+    const costo = c!==null ? c : Number(p['Costo ($)'])||0;
+    const precio = Number(p['Precio Final ($)'])||0;
+    const margen = precio>0&&costo>0 ? Math.round((precio-costo)/precio*100) : null;
+    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div><div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}</div></div>`;
+  }).join('') + '</div>';
+}
+function filtrarProductos(v) { renderProductos(v); }
+
+async function guardarProducto() {
+  const nombre = document.getElementById('np-nombre').value.trim();
+  const precio = document.getElementById('np-precio').value;
+  const rev = document.getElementById('np-rev').value || Math.round(precio*0.8);
+  if (!nombre||!precio) { toast('Completá nombre y precio','error'); return; }
+  DATA.productos.push({'Nombre':nombre,'Precio Final ($)':precio,'Precio Revendedor ($)':rev,'Costo ($)':'','Margen %':''});
+  closeModal('modal-producto');
+  renderProductos();
+  toast('✓ Producto guardado');
+  document.getElementById('np-nombre').value='';
+  document.getElementById('np-precio').value='';
+  document.getElementById('np-rev').value='';
+}
+
+// ── MATERIAS PRIMAS ──
+function renderMaterias(f='') {
+  const el = document.getElementById('materias-list');
+  const list = DATA.materias.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
+  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
+  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m,i)=>`
+    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${m['Última actualización']||''}</div></div>
+    <div style="text-align:right;"><div class="price">${fmt(m['Precio por unidad ($)'])}</div>
+    <button class="badge badge-gold" onclick="editarMateria(${i})" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
+  ).join('') + '</div>';
+}
+function filtrarMaterias(v) { renderMaterias(v); }
+
+function editarMateria(i) {
+  const m = DATA.materias[i];
+  document.getElementById('modal-materia-title').textContent = 'Editar: '+m['Nombre'];
+  document.getElementById('nm-nombre').value = m['Nombre'];
+  document.getElementById('nm-precio').value = m['Precio por unidad ($)'];
+  document.getElementById('nm-unidad').value = m['Unidad']||'kg';
+  openModal('modal-materia');
+}
+
+async function guardarMateria() {
+  const nombre = document.getElementById('nm-nombre').value.trim();
+  const precio = document.getElementById('nm-precio').value;
+  const unidad = document.getElementById('nm-unidad').value;
+  if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
+  const idx = DATA.materias.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
+  const obj = {'Nombre':nombre,'Precio por unidad ($)':precio,'Unidad':unidad,'Última actualización':today()};
+  if (idx>=0) DATA.materias[idx]=obj; else DATA.materias.push(obj);
+  DATA.materias.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
+  closeModal('modal-materia');
+  renderMaterias();
+  toast('✓ Materia prima actualizada');
+}
+
+// ── RECETAS ──
+function renderRecetas(f='') {
+  const el = document.getElementById('recetas-list');
+  const prods = [...new Set(DATA.recetas.map(r=>r['Producto']))].filter(p=>!f||p.toLowerCase().includes(f.toLowerCase()));
+  if (!prods.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin recetas</div>'; return; }
+  el.innerHTML = prods.map(prod=>{
+    const ings = DATA.recetas.filter(r=>r['Producto']===prod);
+    const c = calcularCosto(prod);
+    return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="font-weight:600;">${prod}</div><div style="color:var(--accent);font-weight:600;">${c!==null?fmt(c):'—'}</div></div>${ings.map(ing=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="color:var(--text2);">${ing['Ingrediente']}</span><span style="color:var(--text3);">${ing['Cantidad']} ${ing['Unidad']||''}</span></div>`).join('')}</div>`;
+  }).join('');
+}
+function filtrarRecetas(v) { renderRecetas(v); }
+
+function addIngRow() {
+  const c = document.getElementById('nr-ings-list');
+  const div = document.createElement('div');
+  div.className = 'ing-row';
+  div.innerHTML = `<select style="flex:2;font-size:13px;" onchange="updateUnit(this);calcPreviewCosto()"><option value="">— Ingrediente —</option>${DATA.materias.map(m=>`<option value="${m['Nombre']}">${m['Nombre']}</option>`).join('')}</select><input type="number" step="0.001" placeholder="Cant." style="flex:1;" oninput="calcPreviewCosto()"><span class="unit-lbl">u</span><button onclick="this.parentElement.remove();calcPreviewCosto()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;">×</button>`;
+  c.appendChild(div);
+}
+function updateUnit(sel) {
+  const mp = DATA.materias.find(m=>m['Nombre']===sel.value);
+  sel.parentElement.querySelector('.unit-lbl').textContent = mp?.['Unidad']||'u';
+}
+function calcPreviewCosto() {
+  let t = 0;
+  document.querySelectorAll('#nr-ings-list .ing-row').forEach(row=>{
+    const s=row.querySelector('select').value, q=parseFloat(row.querySelector('input').value)||0;
+    const mp=DATA.materias.find(m=>m['Nombre']===s);
+    if(mp) t+=(Number(mp['Precio por unidad ($)'])||0)*q;
+  });
+  document.getElementById('nr-costo-preview').textContent=fmt(t);
+}
+async function guardarReceta() {
+  const prod=document.getElementById('nr-producto').value;
+  if(!prod){toast('Elegí un producto','error');return;}
+  const rows=document.querySelectorAll('#nr-ings-list .ing-row');
+  if(!rows.length){toast('Agregá al menos un ingrediente','error');return;}
+  DATA.recetas=DATA.recetas.filter(r=>r['Producto']!==prod);
+  rows.forEach(row=>{
+    const ing=row.querySelector('select').value, qty=row.querySelector('input').value;
+    if(ing&&qty) DATA.recetas.push({'Producto':prod,'Ingrediente':ing,'Cantidad':qty,'Unidad':row.querySelector('.unit-lbl').textContent});
+  });
+  closeModal('modal-receta');
+  renderRecetas();
+  toast('✓ Receta guardada');
+}
+
+// ── VENTAS ──
+function initVentas() {
+  if(!document.getElementById('venta-items-list').children.length) addVentaItem();
+}
+function addVentaItem() {
+  const c=document.getElementById('venta-items-list');
+  const div=document.createElement('div'); div.className='venta-item';
+  div.innerHTML=`<select class="tipo" style="flex:1.3;font-size:13px;" onchange="calcVentaTotal()"><option value="final">Final</option><option value="revendedor">Revend.</option></select><select style="flex:2;font-size:13px;" onchange="calcVentaTotal()"><option value="">— Producto —</option>${DATA.productos.map(p=>`<option value="${p['Nombre']}" data-precio="${p['Precio Final ($)']}" data-rev="${p['Precio Revendedor ($)']}" data-costo="${calcularCosto(p['Nombre'])??p['Costo ($)']??0}">${p['Nombre']}</option>`).join('')}</select><input type="number" min="1" value="1" style="flex:0.8;" oninput="calcVentaTotal()"><button class="remove-btn" onclick="this.parentElement.remove();calcVentaTotal()">×</button>`;
+  c.appendChild(div);
+}
+function calcVentaTotal() {
+  let ing=0,gan=0;
+  document.querySelectorAll('.venta-item').forEach(row=>{
+    const tipo=row.querySelector('.tipo').value;
+    const sel=row.querySelectorAll('select')[1];
+    const opt=sel.options[sel.selectedIndex];
+    const qty=parseInt(row.querySelector('input').value)||0;
+    if(opt?.dataset?.precio){
+      const p=tipo==='revendedor'?Number(opt.dataset.rev):Number(opt.dataset.precio);
+      const c=Number(opt.dataset.costo)||0;
+      ing+=p*qty; gan+=(p-c)*qty;
+    }
+  });
+  document.getElementById('venta-total-ing').textContent=fmt(ing);
+  document.getElementById('venta-total-gan').textContent=fmt(gan);
+  document.getElementById('venta-dolar').textContent=dolarMEP&&gan>0?fmtUSD(gan/dolarMEP)+' MEP':'';
+}
+async function guardarVenta() {
+  const items=[];
+  document.querySelectorAll('.venta-item').forEach(row=>{
+    const tipo=row.querySelector('.tipo').value;
+    const sel=row.querySelectorAll('select')[1];
+    const opt=sel.options[sel.selectedIndex];
+    const qty=parseInt(row.querySelector('input').value)||0;
+    if(opt?.value&&qty>0){
+      const p=tipo==='revendedor'?Number(opt.dataset.rev):Number(opt.dataset.precio);
+      const c=Number(opt.dataset.costo)||0;
+      items.push({fecha:today(),producto:opt.value,tipo:tipo==='revendedor'?'Revendedor':'Consumidor final',cantidad:qty,precio:p,costo:c,ingreso:p*qty,ganancia:(p-c)*qty,metodo:document.getElementById('venta-metodo').value});
+    }
+  });
+  if(!items.length){toast('Agregá al menos un producto','error');return;}
+  items.forEach(v=>DATA.ventas.push({'Fecha':v.fecha,'Producto':v.producto,'Tipo cliente':v.tipo,'Cantidad':v.cantidad,'Precio unit ($)':v.precio,'Costo unit ($)':v.costo,'Ingreso ($)':v.ingreso,'Ganancia ($)':v.ganancia,'Método de pago':v.metodo}));
+  document.getElementById('venta-items-list').innerHTML='';
+  addVentaItem(); calcVentaTotal(); renderInicio();
+  toast('✓ Venta registrada · '+items.length+' producto'+(items.length>1?'s':''));
+}
+
+// ── RESUMEN ──
+function renderResumen() {
+  const el=document.getElementById('resumen-list');
+  const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const ahora=new Date(), mesAct=ahora.getMonth()+1, anioAct=ahora.getFullYear();
+  let html='', yr=2026, mo=6;
+  while(yr<2036||(yr===2036&&mo<=6)){
+    const isCurrent=mo===mesAct&&yr===anioAct;
+    const vMes=DATA.ventas.filter(v=>{const p=v['Fecha']?.split('/');return p&&Number(p[1])===mo&&Number(p[2])===yr;});
+    const ing=vMes.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
+    const gan=vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
+    const ganUSD=dolarMEP&&gan>0?Math.round(gan/dolarMEP):null;
+    html+=`<div class="resumen-row${isCurrent?' current':''}"><div class="mes">${meses[mo-1].substring(0,3)} ${yr}</div><div class="num">${ing>0?fmt(ing):'—'}</div><div class="gan${gan<0?' neg':''}">${gan>0?fmt(gan):'—'}</div><div class="num" style="color:var(--gold);font-weight:500;">${ganUSD!==null?'U$S '+ganUSD.toLocaleString('es-AR'):'—'}</div></div>`;
+    mo++;if(mo>12){mo=1;yr++;}
+  }
+  el.innerHTML=html;
+}
+
+// ── USUARIOS ──
+async function renderUsuarios() {
+  if(currentUser?.rol!=='admin') return;
+  const el=document.getElementById('usuarios-list');
+  const users=await cargarSheet('Usuarios');
+  DATA.usuarios=users.filter(u=>u['Usuario']);
+  if(!DATA.usuarios.length){el.innerHTML='<div style="padding:16px;color:var(--text3);font-size:14px;">Sin usuarios cargados</div>';return;}
+  el.innerHTML='<div style="padding:0;">' + DATA.usuarios.map(u=>`
+    <div class="user-row">
+      <div><div style="font-weight:500;font-size:14px;">${u['Nombre']||u['Usuario']}</div><div style="font-size:12px;color:var(--text3);">@${u['Usuario']}</div></div>
+      <span class="user-role ${u['Rol']==='admin'?'role-admin':'role-empleado'}">${u['Rol']==='admin'?'Admin':'Empleado'}</span>
+    </div>`).join('') + '</div>';
+}
+
+async function guardarUsuario() {
+  const nombre=document.getElementById('nu-nombre').value.trim();
+  const usuario=document.getElementById('nu-usuario').value.trim().toLowerCase();
+  const pass=document.getElementById('nu-pass').value;
+  const rol=document.getElementById('nu-rol').value;
+  if(!nombre||!usuario||!pass){toast('Completá todos los campos','error');return;}
+  DATA.usuarios.push({'Nombre':nombre,'Usuario':usuario,'Contraseña':pass,'Rol':rol});
+  closeModal('modal-usuario');
+  toast('✓ Usuario creado · Agregalo manualmente en la hoja "Usuarios" del Sheet');
+  document.getElementById('nu-nombre').value='';
+  document.getElementById('nu-usuario').value='';
+  document.getElementById('nu-pass').value='';
+}
+
+// ── INIT ──
+checkAuth();
+cargarDolar();
+cargarTodo();
+</script>
+</body>
+</html>
