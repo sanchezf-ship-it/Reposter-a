@@ -427,15 +427,20 @@ async function cargarDolar() {
 // ── SHEET ──
 const API_URL = 'https://script.google.com/macros/s/AKfycbx3Nkhv0oLBEnBDha72--a34-gJcTtDTZCzzLbU_11BrzW1TIAk69Twpf7hShOG8wEZWQ/exec';
 
-async function cargarSheet(hoja) {
-  try {
-    const res = await fetch(`${API_URL}?sheet=${encodeURIComponent(hoja)}`);
-    if (!res.ok) return [];
-    const text = await res.text();
-    if (!text || text.trim() === '') return [];
-    const data = JSON.parse(text);
-    return Array.isArray(data) ? data : [];
-  } catch(e) { return []; }
+async function cargarSheet(hoja, intentos=3) {
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const res = await fetch(`${API_URL}?sheet=${encodeURIComponent(hoja)}`);
+      if (!res.ok) { await new Promise(r => setTimeout(r, 1000)); continue; }
+      const text = await res.text();
+      if (!text || text.trim() === '') return [];
+      const data = JSON.parse(text);
+      if (Array.isArray(data)) return data;
+    } catch(e) {
+      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  return [];
 }
 
 async function cargarTodo() {
