@@ -381,7 +381,7 @@ function showScreen(name) {
   if (name==='materias') renderMaterias();
   if (name==='resumen') renderResumen();
   if (name==='inicio') renderInicio();
-  if (name==='ventas') initVentas();
+  if (name==='ventas') setTimeout(initVentas, 100);
   if (name==='config') renderUsuarios();
 }
 
@@ -439,7 +439,7 @@ async function cargarTodo() {
   if (activeScreen === "materias") renderMaterias();
   if (activeScreen === "productos") renderProductos();
   if (activeScreen === "recetas") renderRecetas();
-  if (activeScreen === "ventas") { document.getElementById("venta-items-list").innerHTML=""; initVentas(); }
+  if (activeScreen === "ventas") initVentas();
   renderInicio();
   // Poblar selector receta
   const sel = document.getElementById('nr-producto');
@@ -639,7 +639,9 @@ async function guardarReceta() {
 
 // ── VENTAS ──
 function initVentas() {
-  if(!document.getElementById('venta-items-list').children.length) addVentaItem();
+  const list = document.getElementById('venta-items-list');
+  list.innerHTML = '';
+  addVentaItem();
 }
 function addVentaItem() {
   const c=document.getElementById('venta-items-list');
