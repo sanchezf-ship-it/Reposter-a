@@ -363,7 +363,24 @@ function cerrarSesion() {
 const fmt = n => (!n && n!==0) ? '—' : '$' + Math.round(Number(n)).toLocaleString('es-AR');
 const fmtUSD = n => !n ? '—' : 'U$S ' + Number(n).toFixed(0);
 const today = () => new Date().toLocaleDateString('es-AR');
-const todayISO = () => new Date().toISOString().split('T')[0];
+const todayISO = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+};
+const sameDay = (fechaSheet, yr, mo, dy) => {
+  if (!fechaSheet) return false;
+  // Handle ISO format: 2026-05-26T... or 2026-05-26
+  const parts = fechaSheet.split('T')[0].split('-');
+  if (parts.length === 3) {
+    return Number(parts[0])===yr && Number(parts[1])===mo && Number(parts[2])===dy;
+  }
+  // Handle es-AR format: 26/5/2026
+  const p2 = fechaSheet.split('/');
+  if (p2.length === 3) {
+    return Number(p2[2])===yr && Number(p2[1])===mo && Number(p2[0])===dy;
+  }
+  return false;
+};
 
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -469,13 +486,8 @@ function renderInicio() {
   document.getElementById('stat-mes-label').textContent = meses[mesAct-1]+' '+anioAct;
 
   const hoyStr = today();
-  const vHoy = DATA.ventas.filter(v=>{
-    const f = v['Fecha'];
-    if (!f) return false;
-    const d = new Date(f);
-    const fStr = d.toLocaleDateString('es-AR');
-    return fStr === hoyStr || f === hoyStr;
-  });
+  const ahora2 = new Date();
+  const vHoy = DATA.ventas.filter(v => sameDay(v['Fecha'], ahora2.getFullYear(), ahora2.getMonth()+1, ahora2.getDate()));
   const ingHoy = vHoy.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
   const ganHoy = vHoy.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
   document.getElementById('stat-hoy-ing').textContent = fmt(ingHoy);
@@ -703,7 +715,7 @@ function renderResumen() {
   let html='', yr=2026, mo=6;
   while(yr<2036||(yr===2036&&mo<=6)){
     const isCurrent=mo===mesAct&&yr===anioAct;
-    const vMes=DATA.ventas.filter(v=>{const f=v['Fecha'];if(!f)return false;const d=new Date(f);return d.getMonth()+1===mo&&d.getFullYear()===yr;});
+    const vMes=DATA.ventas.filter(v=>{if(!v['Fecha'])return false;const p=v['Fecha'].split('T')[0].split('-');if(p.length===3)return Number(p[0])===yr&&Number(p[1])===mo;const p2=v['Fecha'].split('/');return p2.length===3&&Number(p2[2])===yr&&Number(p2[1])===mo;});
     const ing=vMes.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
     const gan=vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
     const ganUSD=dolarMEP&&gan>0?Math.round(gan/dolarMEP):null;
