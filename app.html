@@ -498,11 +498,9 @@ function renderInicio() {
   const vMes = DATA.ventas.filter(v=>{
     const p=v['Fecha']?.split('/'); return p&&Number(p[1])===mesAct&&Number(p[2])===anioAct;
   });
-  const ingMes = vMes.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
-  const ganMes = vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
   document.getElementById('stat-mes-ing').textContent = fmt(ingMes);
   document.getElementById('stat-mes-gan').textContent = fmt(ganMes);
-  document.getElementById('stat-mes-dolar').textContent = dolarMEP&&ganMes ? fmtUSD(ganMes/dolarMEP)+' USD MEP' : '— USD MEP';
+  document.getElementById('stat-mes-dolar').textContent = ingMes > 0 ? Math.round(ganMes/ingMes*100)+'% margen' : '—';
 }
 
 // ── PRODUCTOS ──
