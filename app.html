@@ -192,6 +192,50 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <select id="venta-metodo"><option>Transferencia</option><option>Efectivo</option><option>Mercado Pago</option><option>Débito</option><option>Crédito</option></select>
   </div>
   <button class="btn btn-primary" onclick="guardarVenta()">Guardar venta</button>
+
+  <!-- HISTORIAL -->
+  <div style="margin-top:32px;">
+    <div class="section-label">Historial de ventas</div>
+    
+    <div class="card" style="padding:14px;">
+      <div class="form-row" style="margin-bottom:10px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Desde</label>
+          <input type="date" id="filtro-desde" onchange="filtrarHistorial()">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Hasta</label>
+          <input type="date" id="filtro-hasta" onchange="filtrarHistorial()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Producto</label>
+          <select id="filtro-producto" onchange="filtrarHistorial()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Método de pago</label>
+          <select id="filtro-metodo-hist" onchange="filtrarHistorial()">
+            <option value="">Todos</option>
+            <option>Transferencia</option>
+            <option>Efectivo</option>
+            <option>Mercado Pago</option>
+            <option>Débito</option>
+            <option>Crédito</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="historial-subtotal" style="display:none;" class="total-bar" style="margin-bottom:10px;">
+      <div><div class="lbl">Ingresos período</div><div class="amt" id="hist-ing">$0</div></div>
+      <div style="text-align:right;"><div class="lbl">Ganancia período</div><div class="amt" id="hist-gan">$0</div></div>
+    </div>
+
+    <div id="historial-list"><div style="padding:20px;text-align:center;color:var(--text3);font-size:14px;">Seleccioná un rango de fechas para ver el historial</div></div>
+  </div>
 </div>
 
 <!-- PRODUCTOS -->
@@ -426,7 +470,7 @@ function showScreen(name) {
   if (name==='packaging') renderPackaging();
   if (name==='resumen') renderResumen();
   if (name==='inicio') renderInicio();
-  if (name==='ventas') setTimeout(initVentas, 100);
+  if (name==='ventas') { setTimeout(initVentas, 100); setTimeout(initFiltros, 200); }
   if (name==='config') renderUsuarios();
 }
 
@@ -495,7 +539,7 @@ async function cargarTodo() {
   if (activeScreen === "packaging") renderPackaging();
   if (activeScreen === "productos") renderProductos();
   if (activeScreen === "recetas") renderRecetas();
-  if (activeScreen === "ventas") initVentas();
+  if (activeScreen === "ventas") { initVentas(); initFiltros(); }
   renderInicio();
   setTimeout(renderInicio, 500); // ensure re-render after data fully processed
   // Poblar selector receta
@@ -581,6 +625,74 @@ function addPkgRow() {
 function updateUnitPkg(sel) {
   const pk = DATA.packaging.find(p=>p['Nombre']===sel.value);
   sel.parentElement.querySelector('.unit-lbl').textContent = pk?.['Unidad']||'u';
+}
+
+
+// ── HISTORIAL ──
+function initFiltros() {
+  const sel = document.getElementById('filtro-producto');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Todos</option>';
+  const prods = [...new Set(DATA.productos.map(p=>p['Nombre']))].sort();
+  prods.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p; o.textContent = p; sel.appendChild(o);
+  });
+}
+
+function filtrarHistorial() {
+  const desde = document.getElementById('filtro-desde').value;
+  const hasta = document.getElementById('filtro-hasta').value;
+  const prod = document.getElementById('filtro-producto').value;
+  const metodo = document.getElementById('filtro-metodo-hist').value;
+
+  let ventas = [...DATA.ventas];
+
+  if (desde) ventas = ventas.filter(v => {
+    const f = v['Fecha']?.split('T')[0];
+    return f && f >= desde;
+  });
+  if (hasta) ventas = ventas.filter(v => {
+    const f = v['Fecha']?.split('T')[0];
+    return f && f <= hasta;
+  });
+  if (prod) ventas = ventas.filter(v => v['Producto'] === prod);
+  if (metodo) ventas = ventas.filter(v => v['Método de pago'] === metodo);
+
+  ventas.sort((a,b) => b['Fecha']?.localeCompare(a['Fecha']));
+
+  const el = document.getElementById('historial-list');
+  const subtotal = document.getElementById('historial-subtotal');
+
+  if (!ventas.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:14px;">Sin ventas para los filtros seleccionados</div>';
+    subtotal.style.display = 'none';
+    return;
+  }
+
+  const ingTotal = ventas.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
+  const ganTotal = ventas.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
+
+  document.getElementById('hist-ing').textContent = fmt(ingTotal);
+  document.getElementById('hist-gan').textContent = fmt(ganTotal);
+  subtotal.style.display = 'flex';
+
+  el.innerHTML = '<div class="card" style="padding:0 14px;">' + ventas.map(v => {
+    const fecha = v['Fecha']?.split('T')[0] || v['Fecha'] || '—';
+    const partes = fecha.split('-');
+    const fechaStr = partes.length===3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fecha;
+    const gan = Number(v['Ganancia ($)'])||0;
+    return `<div class="list-item">
+      <div>
+        <div class="name">${v['Producto']||'—'}</div>
+        <div class="meta">${fechaStr} · ${v['Tipo cliente']||''} · ${v['Método de pago']||''} · x${v['Cantidad']||1}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="price">${fmt(v['Ingreso ($)'])}</div>
+        <div class="margin">${fmt(gan)}</div>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
 }
 
 function renderInicio() {
