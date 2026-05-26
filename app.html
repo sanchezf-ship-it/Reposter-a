@@ -363,6 +363,7 @@ function cerrarSesion() {
 const fmt = n => (!n && n!==0) ? '—' : '$' + Math.round(Number(n)).toLocaleString('es-AR');
 const fmtUSD = n => !n ? '—' : 'U$S ' + Number(n).toFixed(0);
 const today = () => new Date().toLocaleDateString('es-AR');
+const todayISO = () => new Date().toISOString().split('T')[0];
 
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -468,7 +469,13 @@ function renderInicio() {
   document.getElementById('stat-mes-label').textContent = meses[mesAct-1]+' '+anioAct;
 
   const hoyStr = today();
-  const vHoy = DATA.ventas.filter(v=>v['Fecha']===hoyStr);
+  const vHoy = DATA.ventas.filter(v=>{
+    const f = v['Fecha'];
+    if (!f) return false;
+    const d = new Date(f);
+    const fStr = d.toLocaleDateString('es-AR');
+    return fStr === hoyStr || f === hoyStr;
+  });
   const ingHoy = vHoy.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
   const ganHoy = vHoy.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
   document.getElementById('stat-hoy-ing').textContent = fmt(ingHoy);
@@ -675,12 +682,12 @@ async function guardarVenta() {
     const qty=parseInt(row.querySelector('input').value)||0;
     if(opt?.value&&qty>0){
       const p=tipo==='revendedor'?Number(opt.dataset.rev):Number(opt.dataset.precio);
-      const c=Number(opt.dataset.costo)||0;
-      items.push({fecha:today(),producto:opt.value,tipo:tipo==='revendedor'?'Revendedor':'Consumidor final',cantidad:qty,precio:p,costo:c,ingreso:p*qty,ganancia:(p-c)*qty,metodo:document.getElementById('venta-metodo').value});
+      const costoUnit=Number(opt.dataset.costo)||0;
+      items.push({fecha:todayISO(),producto:opt.value,tipo:tipo==='revendedor'?'Revendedor':'Consumidor final',cantidad:qty,precio:p,costoUnit:costoUnit,ingreso:p*qty,ganancia:(p-costoUnit)*qty,metodo:document.getElementById('venta-metodo').value});
     }
   });
   if(!items.length){toast('Agregá al menos un producto','error');return;}
-  const ventasNuevas = items.map(v=>({'Fecha':v.fecha,'Producto':v.producto,'Tipo cliente':v.tipo,'Cantidad':v.cantidad,'Precio unit ($)':v.precio,'Costo unit ($)':v.costo,'Ingreso ($)':v.ingreso,'Ganancia ($)':v.ganancia,'Método de pago':v.metodo}));
+  const ventasNuevas = items.map(v=>({'Fecha':v.fecha,'Producto':v.producto,'Tipo cliente':v.tipo,'Cantidad':v.cantidad,'Precio unit ($)':v.precio,'Costo unit ($)':v.costoUnit,'Ingreso ($)':v.ingreso,'Ganancia ($)':v.ganancia,'Método de pago':v.metodo}));
   ventasNuevas.forEach(v=>DATA.ventas.push(v));
   await Promise.all(ventasNuevas.map(v => saveToSheet('Ventas', 'agregar', v)));
   document.getElementById('venta-items-list').innerHTML='';
@@ -696,7 +703,7 @@ function renderResumen() {
   let html='', yr=2026, mo=6;
   while(yr<2036||(yr===2036&&mo<=6)){
     const isCurrent=mo===mesAct&&yr===anioAct;
-    const vMes=DATA.ventas.filter(v=>{const p=v['Fecha']?.split('/');return p&&Number(p[1])===mo&&Number(p[2])===yr;});
+    const vMes=DATA.ventas.filter(v=>{const f=v['Fecha'];if(!f)return false;const d=new Date(f);return d.getMonth()+1===mo&&d.getFullYear()===yr;});
     const ing=vMes.reduce((s,v)=>s+(Number(v['Ingreso ($)'])||0),0);
     const gan=vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
     const ganUSD=dolarMEP&&gan>0?Math.round(gan/dolarMEP):null;
