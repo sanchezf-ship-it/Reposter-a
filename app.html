@@ -500,15 +500,39 @@ function renderProductos(f='') {
 }
 function filtrarProductos(v) { renderProductos(v); }
 
+
+// ── GUARDAR EN SHEET ──
+async function saveToSheet(sheet, accion, datos, buscarCol=null, buscarVal=null) {
+  try {
+    const body = { sheet, accion, datos };
+    if (buscarCol) { body.buscarCol = buscarCol; body.buscarVal = buscarVal; }
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  } catch(e) { console.error('Error guardando en Sheet:', e); }
+}
+
+async function reemplazarHoja(sheet, filas) {
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ sheet, accion: 'reemplazar_hoja', filas })
+    });
+  } catch(e) { console.error('Error reemplazando hoja:', e); }
+}
+
 async function guardarProducto() {
   const nombre = document.getElementById('np-nombre').value.trim();
   const precio = document.getElementById('np-precio').value;
   const rev = document.getElementById('np-rev').value || Math.round(precio*0.8);
   if (!nombre||!precio) { toast('Completá nombre y precio','error'); return; }
-  DATA.productos.push({'Nombre':nombre,'Precio Final ($)':precio,'Precio Revendedor ($)':rev,'Costo ($)':'','Margen %':''});
+  const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':'','Margen %':''};
+  DATA.productos.push(obj);
+  await saveToSheet('Productos', 'agregar', obj);
   closeModal('modal-producto');
   renderProductos();
-  toast('✓ Producto guardado');
+  toast('✓ Producto guardado en Sheet');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-precio').value='';
   document.getElementById('np-rev').value='';
@@ -542,12 +566,18 @@ async function guardarMateria() {
   const unidad = document.getElementById('nm-unidad').value;
   if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
   const idx = DATA.materias.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
-  const obj = {'Nombre':nombre,'Precio por unidad ($)':precio,'Unidad':unidad,'Última actualización':today()};
-  if (idx>=0) DATA.materias[idx]=obj; else DATA.materias.push(obj);
+  const obj = {'Nombre':nombre,'Precio por unidad ($)':Number(precio),'Unidad':unidad,'Última actualización':today()};
+  if (idx>=0) {
+    DATA.materias[idx]=obj;
+    await saveToSheet('MPrimas', 'actualizar', obj, 'Nombre', nombre);
+  } else {
+    DATA.materias.push(obj);
+    await saveToSheet('MPrimas', 'agregar', obj);
+  }
   DATA.materias.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
   closeModal('modal-materia');
   renderMaterias();
-  toast('✓ Materia prima actualizada');
+  toast('✓ Materia prima guardada en Sheet');
 }
 
 // ── RECETAS ──
@@ -589,13 +619,21 @@ async function guardarReceta() {
   const rows=document.querySelectorAll('#nr-ings-list .ing-row');
   if(!rows.length){toast('Agregá al menos un ingrediente','error');return;}
   DATA.recetas=DATA.recetas.filter(r=>r['Producto']!==prod);
+  const nuevasFilas=[];
   rows.forEach(row=>{
     const ing=row.querySelector('select').value, qty=row.querySelector('input').value;
-    if(ing&&qty) DATA.recetas.push({'Producto':prod,'Ingrediente':ing,'Cantidad':qty,'Unidad':row.querySelector('.unit-lbl').textContent});
+    if(ing&&qty){
+      const r={'Producto':prod,'Ingrediente':ing,'Cantidad':Number(qty),'Unidad':row.querySelector('.unit-lbl').textContent};
+      DATA.recetas.push(r);
+      nuevasFilas.push(r);
+    }
   });
+  // Guardar receta completa en Sheet (reemplaza las filas de este producto)
+  const todasLasRecetas = DATA.recetas;
+  await reemplazarHoja('Recetas', todasLasRecetas);
   closeModal('modal-receta');
   renderRecetas();
-  toast('✓ Receta guardada');
+  toast('✓ Receta guardada en Sheet');
 }
 
 // ── VENTAS ──
@@ -639,10 +677,12 @@ async function guardarVenta() {
     }
   });
   if(!items.length){toast('Agregá al menos un producto','error');return;}
-  items.forEach(v=>DATA.ventas.push({'Fecha':v.fecha,'Producto':v.producto,'Tipo cliente':v.tipo,'Cantidad':v.cantidad,'Precio unit ($)':v.precio,'Costo unit ($)':v.costo,'Ingreso ($)':v.ingreso,'Ganancia ($)':v.ganancia,'Método de pago':v.metodo}));
+  const ventasNuevas = items.map(v=>({'Fecha':v.fecha,'Producto':v.producto,'Tipo cliente':v.tipo,'Cantidad':v.cantidad,'Precio unit ($)':v.precio,'Costo unit ($)':v.costo,'Ingreso ($)':v.ingreso,'Ganancia ($)':v.ganancia,'Método de pago':v.metodo}));
+  ventasNuevas.forEach(v=>DATA.ventas.push(v));
+  await Promise.all(ventasNuevas.map(v => saveToSheet('Ventas', 'agregar', v)));
   document.getElementById('venta-items-list').innerHTML='';
   addVentaItem(); calcVentaTotal(); renderInicio();
-  toast('✓ Venta registrada · '+items.length+' producto'+(items.length>1?'s':''));
+  toast('✓ Venta guardada en Sheet');
 }
 
 // ── RESUMEN ──
