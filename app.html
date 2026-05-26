@@ -167,8 +167,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <div class="stats-grid" style="margin-top:4px;">
     <div class="stat"><div class="lbl">Ventas hoy</div><div class="val green" id="stat-hoy-ing">$0</div><div class="sub" id="stat-hoy-cant">0 ventas</div></div>
     <div class="stat"><div class="lbl">Ganancia hoy</div><div class="val green" id="stat-hoy-gan">$0</div><div class="sub" id="stat-hoy-margin">—</div></div>
-    <div class="stat"><div class="lbl">Este mes</div><div class="val" id="stat-mes-ing">$0</div><div class="sub" id="stat-mes-label">...</div></div>
-    <div class="stat"><div class="lbl">Ganancia neta</div><div class="val gold" id="stat-mes-gan">$0</div><div class="sub" id="stat-mes-dolar">— USD MEP</div></div>
+    <div class="stat"><div class="lbl">Ingresos · <span id="stat-mes-label" style="font-weight:600;color:var(--accent);">...</span></div><div class="val" id="stat-mes-ing">$0</div><div class="sub" id="stat-mes-dolar">—</div></div>
+    <div class="stat"><div class="lbl">Ganancia neta · <span style="font-size:10px;color:var(--text3);">mes</span></div><div class="val gold" id="stat-mes-gan">$0</div><div class="sub" id="stat-mes-margen">—</div></div>
   </div>
   <div class="section-label">Acciones rápidas</div>
   <div class="card" style="padding:4px 0;">
@@ -430,9 +430,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbx3Nkhv0oLBEnBDha72--a3
 async function cargarSheet(hoja) {
   try {
     const res = await fetch(`${API_URL}?sheet=${encodeURIComponent(hoja)}`);
-    const data = await res.json();
+    if (!res.ok) return [];
+    const text = await res.text();
+    if (!text || text.trim() === '') return [];
+    const data = JSON.parse(text);
     return Array.isArray(data) ? data : [];
-  } catch(e) { console.error('Error cargando', hoja, e); return []; }
+  } catch(e) { return []; }
 }
 
 async function cargarTodo() {
@@ -458,7 +461,7 @@ async function cargarTodo() {
   if (activeScreen === "productos") renderProductos();
   if (activeScreen === "recetas") renderRecetas();
   if (activeScreen === "ventas") initVentas();
-  renderInicio();
+  renderInicio(); // re-render after data loads
   // Poblar selector receta
   const sel = document.getElementById('nr-producto');
   DATA.productos.forEach(p => {
@@ -502,7 +505,10 @@ function renderInicio() {
   const ganMes = vMes.reduce((s,v)=>s+(Number(v['Ganancia ($)'])||0),0);
   document.getElementById('stat-mes-ing').textContent = fmt(ingMes);
   document.getElementById('stat-mes-gan').textContent = fmt(ganMes);
-  document.getElementById('stat-mes-dolar').textContent = ingMes > 0 ? Math.round(ganMes/ingMes*100)+'% margen' : '—';
+  document.getElementById('stat-mes-dolar').textContent = vMes.length + ' ventas';
+  if (document.getElementById('stat-mes-margen')) {
+    document.getElementById('stat-mes-margen').textContent = ingMes > 0 ? Math.round(ganMes/ingMes*100)+'% margen' : '—';
+  }
 }
 
 // ── PRODUCTOS ──
