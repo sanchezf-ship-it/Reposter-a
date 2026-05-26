@@ -158,6 +158,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <button class="nav-btn" onclick="showScreen('productos')" data-screen="productos">🏷️ Productos</button>
   <button class="nav-btn admin-only" onclick="showScreen('recetas')" data-screen="recetas">📋 Recetas</button>
   <button class="nav-btn admin-only" onclick="showScreen('materias')" data-screen="materias">📦 Mat. primas</button>
+  <button class="nav-btn admin-only" onclick="showScreen('packaging')" data-screen="packaging">🎁 Packaging</button>
   <button class="nav-btn" onclick="showScreen('resumen')" data-screen="resumen">📊 Resumen</button>
   <button class="nav-btn admin-only" onclick="showScreen('config')" data-screen="config">⚙️ Config</button>
 </nav>
@@ -221,6 +222,16 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   </div>
   <div id="materias-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab" onclick="openModal('modal-materia')">+</button>
+</div>
+
+<!-- PACKAGING -->
+<div id="screen-packaging" class="screen">
+  <div class="search-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Buscar packaging..." oninput="filtrarPackaging(this.value)">
+  </div>
+  <div id="packaging-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+  <button class="fab" onclick="openModal('modal-packaging')">+</button>
 </div>
 
 <!-- RESUMEN -->
@@ -309,8 +320,23 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <div class="section-label" style="margin-top:16px;">Ingredientes</div>
     <div id="nr-ings-list"></div>
     <button class="btn btn-secondary" onclick="addIngRow()">+ Ingrediente</button>
+    <button class="btn btn-secondary" onclick="addPkgRow()" style="margin-top:6px;">+ Packaging</button>
     <div class="cost-preview" style="margin-top:14px;"><span class="lbl">Costo estimado</span><span class="val" id="nr-costo-preview">$0</span></div>
     <button class="btn btn-primary" onclick="guardarReceta()">Guardar receta</button>
+  </div>
+</div>
+
+<!-- MODAL: Packaging -->
+<div id="modal-packaging" class="modal-bg" onclick="if(event.target===this)closeModal('modal-packaging')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modal-packaging-title">Packaging</h2>
+    <div class="form-group"><label>Nombre</label><input type="text" id="npk-nombre" placeholder="Ej: Caja individual"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Precio ($)</label><input type="number" id="npk-precio" placeholder="0"></div>
+      <div class="form-group"><label>Unidad</label><select id="npk-unidad"><option value="u">u</option><option value="kg">kg</option></select></div>
+    </div>
+    <button class="btn btn-primary" onclick="guardarPackaging()">Guardar</button>
   </div>
 </div>
 
@@ -334,7 +360,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 const SHEET_ID = '1xqwQmeswQrIfcKVuSnm3M_l5IiSa7Z2GSjgLrEmw1DI';
 const BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=`;
 
-let DATA = { materias:[], productos:[], recetas:[], ventas:[], usuarios:[] };
+let DATA = { materias:[], productos:[], recetas:[], ventas:[], usuarios:[], packaging:[] };
 let dolarMEP = null;
 let currentUser = null;
 
@@ -397,6 +423,7 @@ function showScreen(name) {
   if (name==='productos') renderProductos();
   if (name==='recetas') renderRecetas();
   if (name==='materias') renderMaterias();
+  if (name==='packaging') renderPackaging();
   if (name==='resumen') renderResumen();
   if (name==='inicio') renderInicio();
   if (name==='ventas') setTimeout(initVentas, 100);
@@ -444,9 +471,10 @@ async function cargarSheet(hoja, intentos=3) {
 }
 
 async function cargarTodo() {
-  const [mp, prod, rec, ven] = await Promise.all([
+  const [mp, prod, rec, ven, pkg] = await Promise.all([
     cargarSheet('MPrimas'), cargarSheet('Productos'),
     cargarSheet('Recetas'), cargarSheet('Ventas'),
+    cargarSheet('Packaging'),
   ]);
   // Normalize keys — pick first non-empty string column as 'Nombre'
   function normalizeRows(rows, keyCol) {
@@ -461,8 +489,10 @@ async function cargarTodo() {
   DATA.productos = normalizeRows(prod, 'Nombre');
   DATA.recetas   = rec.filter(r=>r['Producto']||r['producto']);
   DATA.ventas    = ven.filter(r=>r['Producto']||r['producto']);
+  DATA.packaging = pkg.filter(r=>r['Nombre']);
   const activeScreen = document.querySelector(".screen.active")?.id?.replace("screen-","");
   if (activeScreen === "materias") renderMaterias();
+  if (activeScreen === "packaging") renderPackaging();
   if (activeScreen === "productos") renderProductos();
   if (activeScreen === "recetas") renderRecetas();
   if (activeScreen === "ventas") initVentas();
@@ -482,12 +512,77 @@ function calcularCosto(prod) {
   let t = 0;
   for (const ing of ings) {
     const mp = DATA.materias.find(m => m['Nombre']?.toLowerCase()===ing['Ingrediente']?.toLowerCase());
-    if (mp) t += (Number(mp['Precio por unidad ($)'])||0) * (Number(ing['Cantidad'])||0);
+    if (mp) { t += (Number(mp['Precio por unidad ($)'])||0) * (Number(ing['Cantidad'])||0); continue; }
+    const pk = DATA.packaging.find(p => p['Nombre']?.toLowerCase()===ing['Ingrediente']?.toLowerCase());
+    if (pk) t += (Number(pk['Precio ($)'])||0) * (Number(ing['Cantidad'])||0);
   }
   return t;
 }
 
 // ── INICIO ──
+
+// ── PACKAGING ──
+function renderPackaging(f='') {
+  const el = document.getElementById('packaging-list');
+  const list = DATA.packaging.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
+  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin packaging cargado</div>'; return; }
+  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(m=>`
+    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||'u'} · ${m['Última actualización']||''}</div></div>
+    <div style="text-align:right;"><div class="price">${fmt(m['Precio ($)'])}</div>
+    <button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
+  ).join('') + '</div>';
+}
+function filtrarPackaging(v) { renderPackaging(v); }
+
+function editarPackaging(nombre) {
+  const m = DATA.packaging.find(x => x['Nombre'] === nombre);
+  if (!m) return;
+  document.getElementById('modal-packaging-title').textContent = 'Editar: '+m['Nombre'];
+  document.getElementById('npk-nombre').value = m['Nombre'];
+  document.getElementById('npk-precio').value = m['Precio ($)'];
+  document.getElementById('npk-unidad').value = m['Unidad']||'u';
+  openModal('modal-packaging');
+}
+
+async function guardarPackaging() {
+  const nombre = document.getElementById('npk-nombre').value.trim();
+  const precio = document.getElementById('npk-precio').value;
+  const unidad = document.getElementById('npk-unidad').value;
+  if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
+  const idx = DATA.packaging.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
+  const obj = {'Nombre':nombre,'Precio ($)':Number(precio),'Unidad':unidad,'Última actualización':today()};
+  if (idx>=0) {
+    DATA.packaging[idx]=obj;
+    await saveToSheet('Packaging', 'actualizar', obj, 'Nombre', nombre);
+  } else {
+    DATA.packaging.push(obj);
+    await saveToSheet('Packaging', 'agregar', obj);
+  }
+  DATA.packaging.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
+  closeModal('modal-packaging');
+  renderPackaging();
+  toast('✓ Packaging guardado en Sheet');
+}
+
+function addPkgRow() {
+  const c = document.getElementById('nr-ings-list');
+  const div = document.createElement('div');
+  div.className = 'ing-row';
+  div.innerHTML = `<select style="flex:2;font-size:13px;" onchange="updateUnitPkg(this);calcPreviewCosto()">
+    <option value="">— Packaging —</option>
+    ${DATA.packaging.map(p=>`<option value="${p['Nombre']}">${p['Nombre']}</option>`).join('')}
+  </select>
+  <input type="number" step="1" value="1" placeholder="Cant." style="flex:1;" oninput="calcPreviewCosto()">
+  <span class="unit-lbl">u</span>
+  <button onclick="this.parentElement.remove();calcPreviewCosto()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;">×</button>`;
+  c.appendChild(div);
+}
+
+function updateUnitPkg(sel) {
+  const pk = DATA.packaging.find(p=>p['Nombre']===sel.value);
+  sel.parentElement.querySelector('.unit-lbl').textContent = pk?.['Unidad']||'u';
+}
+
 function renderInicio() {
   const _now = new Date();
   const _mes = _now.getMonth()+1;
