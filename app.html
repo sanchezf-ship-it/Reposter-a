@@ -439,6 +439,7 @@ async function cargarTodo() {
   if (activeScreen === "materias") renderMaterias();
   if (activeScreen === "productos") renderProductos();
   if (activeScreen === "recetas") renderRecetas();
+  if (activeScreen === "ventas") { document.getElementById("venta-items-list").innerHTML=""; initVentas(); }
   renderInicio();
   // Poblar selector receta
   const sel = document.getElementById('nr-producto');
