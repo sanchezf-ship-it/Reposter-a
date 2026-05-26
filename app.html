@@ -563,16 +563,17 @@ function renderMaterias(f='') {
   const el = document.getElementById('materias-list');
   const list = DATA.materias.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
   if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
-  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m,i)=>`
+  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m)=>`
     <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${m['Última actualización']||''}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio por unidad ($)'])}</div>
-    <button class="badge badge-gold" onclick="editarMateria(${i})" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
+    <button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
   ).join('') + '</div>';
 }
 function filtrarMaterias(v) { renderMaterias(v); }
 
-function editarMateria(i) {
-  const m = DATA.materias[i];
+function editarMateria(nombre) {
+  const m = DATA.materias.find(x => x['Nombre'] === nombre);
+  if (!m) return;
   document.getElementById('modal-materia-title').textContent = 'Editar: '+m['Nombre'];
   document.getElementById('nm-nombre').value = m['Nombre'];
   document.getElementById('nm-precio').value = m['Precio por unidad ($)'];
