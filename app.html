@@ -461,7 +461,8 @@ async function cargarTodo() {
   if (activeScreen === "productos") renderProductos();
   if (activeScreen === "recetas") renderRecetas();
   if (activeScreen === "ventas") initVentas();
-  renderInicio(); // re-render after data loads
+  renderInicio();
+  setTimeout(renderInicio, 500); // ensure re-render after data fully processed
   // Poblar selector receta
   const sel = document.getElementById('nr-producto');
   DATA.productos.forEach(p => {
