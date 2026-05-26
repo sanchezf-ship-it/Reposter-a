@@ -771,7 +771,9 @@ function calcPreviewCosto() {
   document.querySelectorAll('#nr-ings-list .ing-row').forEach(row=>{
     const s=row.querySelector('select').value, q=parseFloat(row.querySelector('input').value)||0;
     const mp=DATA.materias.find(m=>m['Nombre']===s);
-    if(mp) t+=(Number(mp['Precio por unidad ($)'])||0)*q;
+    if(mp) { t+=(Number(mp['Precio por unidad ($)'])||0)*q; return; }
+    const pk=DATA.packaging.find(p=>p['Nombre']===s);
+    if(pk) t+=(Number(pk['Precio $ unitario'])||0)*q;
   });
   document.getElementById('nr-costo-preview').textContent=fmt(t);
 }
