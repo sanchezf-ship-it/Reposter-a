@@ -435,6 +435,10 @@ async function cargarTodo() {
   DATA.productos = normalizeRows(prod, 'Nombre');
   DATA.recetas   = rec.filter(r=>r['Producto']||r['producto']);
   DATA.ventas    = ven.filter(r=>r['Producto']||r['producto']);
+  const activeScreen = document.querySelector(".screen.active")?.id?.replace("screen-","");
+  if (activeScreen === "materias") renderMaterias();
+  if (activeScreen === "productos") renderProductos();
+  if (activeScreen === "recetas") renderRecetas();
   renderInicio();
   // Poblar selector receta
   const sel = document.getElementById('nr-producto');
