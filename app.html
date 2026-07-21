@@ -196,7 +196,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <!-- HISTORIAL -->
   <div style="margin-top:32px;">
     <div class="section-label">Historial de ventas</div>
-    
+
     <div class="card" style="padding:14px;">
       <div class="form-row" style="margin-bottom:10px;">
         <div class="form-group" style="margin-bottom:0;">
@@ -526,6 +526,8 @@ async function cargarTodo() {
     const actualKey = Object.keys(rows[0]).find(k => k.toLowerCase().replace(/[^a-z]/g,'') === keyCol.toLowerCase().replace(/[^a-z]/g,'')) || keyCol;
     return rows.filter(r => r[actualKey]).map(r => {
       if (actualKey !== keyCol) { r[keyCol] = r[actualKey]; }
+      // Trim whitespace on the key column so client-side matching (find/findIndex) is reliable
+      if (typeof r[keyCol] === 'string') { r[keyCol] = r[keyCol].trim(); }
       return r;
     });
   }
@@ -747,15 +749,30 @@ function filtrarProductos(v) { renderProductos(v); }
 
 
 // ── GUARDAR EN SHEET ──
-async function saveToSheet(sheet, accion, datos, buscarCol=null, buscarVal=null) {
-  try {
-    const body = { sheet, accion, datos };
-    if (buscarCol) { body.buscarCol = buscarCol; body.buscarVal = buscarVal; }
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify(body)
-    });
-  } catch(e) { console.error('Error guardando en Sheet:', e); }
+async function saveToSheet(sheet, accion, datos, buscarCol=null, buscarVal=null, intentos=3) {
+  const body = { sheet, accion, datos };
+  if (buscarCol) { body.buscarCol = buscarCol; body.buscarVal = buscarVal; }
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+      const text = await res.text();
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch(_) {}
+      if (res.ok && parsed && parsed.ok) return true; // confirmado por el servidor
+      if (res.ok && parsed && parsed.error) {
+        console.error('Apps Script devolvió error:', parsed.error);
+        toast('⚠ No se guardó: ' + parsed.error, 'error');
+        return false;
+      }
+      // res no-ok o respuesta rara → reintentar
+      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
+    } catch(e) {
+      console.error('Error guardando en Sheet:', e);
+      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  toast('⚠ No se pudo confirmar el guardado. Revisá tu conexión y volvé a intentar.', 'error');
+  return false;
 }
 
 async function reemplazarHoja(sheet, filas) {
@@ -791,7 +808,10 @@ function renderMaterias(f='') {
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m)=>`
     <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${m['Última actualización']||''}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio por unidad ($)'])}</div>
-    <button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
+    <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
+      <button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>
+      <button class="badge badge-red" onclick="borrarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Borrar</button>
+    </div></div></div>`
   ).join('') + '</div>';
 }
 function filtrarMaterias(v) { renderMaterias(v); }
@@ -811,19 +831,31 @@ async function guardarMateria() {
   const precio = document.getElementById('nm-precio').value;
   const unidad = document.getElementById('nm-unidad').value;
   if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
-  const idx = DATA.materias.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
+  const idx = DATA.materias.findIndex(m=>m['Nombre']?.trim().toLowerCase()===nombre.toLowerCase());
   const obj = {'Nombre':nombre,'Precio por unidad ($)':Number(precio),'Unidad':unidad,'Última actualización':today()};
+  let ok;
   if (idx>=0) {
     DATA.materias[idx]=obj;
-    await saveToSheet('MPrimas', 'actualizar', obj, 'Nombre', nombre);
+    ok = await saveToSheet('MPrimas', 'actualizar', obj, 'Nombre', DATA.materias[idx]['Nombre'] || nombre);
   } else {
     DATA.materias.push(obj);
-    await saveToSheet('MPrimas', 'agregar', obj);
+    ok = await saveToSheet('MPrimas', 'agregar', obj);
   }
   DATA.materias.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
   closeModal('modal-materia');
   renderMaterias();
-  toast('✓ Materia prima guardada en Sheet');
+  if (ok) toast('✓ Materia prima guardada en Sheet');
+  // Si ok es false, saveToSheet ya mostró el toast de error — no mentimos con un success extra.
+}
+
+async function borrarMateria(nombre) {
+  if (!confirm(`¿Borrar "${nombre}" de materias primas? Esto elimina TODAS las filas con ese nombre en el Sheet (útil para limpiar duplicados).`)) return;
+  const ok = await saveToSheet('MPrimas', 'eliminar', {}, 'Nombre', nombre);
+  if (ok) {
+    DATA.materias = DATA.materias.filter(m => m['Nombre']?.trim().toLowerCase() !== nombre.trim().toLowerCase());
+    renderMaterias();
+    toast('✓ Materia prima borrada del Sheet');
+  }
 }
 
 // ── RECETAS ──
