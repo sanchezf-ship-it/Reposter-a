@@ -175,7 +175,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <div class="card" style="padding:4px 0;">
     <div class="list-item" style="padding:14px 16px;"><div><div class="name">Cargar venta</div><div class="meta">Registrá lo que vendiste</div></div><button class="btn btn-primary btn-sm" onclick="showScreen('ventas')">Ir →</button></div>
     <div class="list-item admin-only" style="padding:14px 16px;"><div><div class="name">Actualizar materia prima</div><div class="meta">Cuando cambia el precio</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('materias')">Ir →</button></div>
-    <div class="list-item admin-only" style="padding:14px 16px;border:none;"><div><div class="name">Nuevo producto</div><div class="meta">Agregar a la lista</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('productos');setTimeout(()=>openModal('modal-producto'),200)">Ir →</button></div>
+    <div class="list-item admin-only" style="padding:14px 16px;border:none;"><div><div class="name">Nuevo producto</div><div class="meta">Agregar a la lista</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('productos');setTimeout(()=>nuevoProducto(),200)">Ir →</button></div>
   </div>
 </div>
 
@@ -245,7 +245,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <input type="text" placeholder="Buscar producto..." oninput="filtrarProductos(this.value)">
   </div>
   <div id="productos-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
-  <button class="fab admin-fab" onclick="openModal('modal-producto')">+</button>
+  <button class="fab admin-fab" onclick="nuevoProducto()">+</button>
 </div>
 
 <!-- RECETAS -->
@@ -329,7 +329,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="modal-producto" class="modal-bg" onclick="if(event.target===this)closeModal('modal-producto')">
   <div class="modal">
     <div class="modal-handle"></div>
-    <h2>Nuevo producto</h2>
+    <h2 id="modal-producto-title">Nuevo producto</h2>
     <div class="form-group"><label>Nombre</label><input type="text" id="np-nombre" placeholder="Ej: Rogel mega"></div>
     <div class="form-row">
       <div class="form-group"><label>Precio venta ($)</label><input type="number" id="np-precio" placeholder="0" oninput="document.getElementById('np-rev').placeholder=Math.round(this.value*0.8)||'Auto'"></div>
@@ -782,10 +782,43 @@ function renderProductos(f='') {
     const costo = c!==null ? c : Number(p['Costo ($)'])||0;
     const precio = Number(p['Precio Final ($)'])||0;
     const margen = precio>0&&costo>0 ? Math.round((precio-costo)/precio*100) : null;
-    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div><div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}</div></div>`;
+    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div>
+    <div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}
+    <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
+      <button class="badge badge-gold" onclick="editarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>
+      <button class="badge badge-red" onclick="borrarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Borrar</button>
+    </div></div></div>`;
   }).join('') + '</div>';
 }
 function filtrarProductos(v) { renderProductos(v); }
+
+function nuevoProducto() {
+  document.getElementById('modal-producto-title').textContent = 'Nuevo producto';
+  document.getElementById('np-nombre').value = '';
+  document.getElementById('np-precio').value = '';
+  document.getElementById('np-rev').value = '';
+  openModal('modal-producto');
+}
+
+function editarProducto(nombre) {
+  const p = DATA.productos.find(x => x['Nombre'] === nombre);
+  if (!p) return;
+  document.getElementById('modal-producto-title').textContent = 'Editar: '+p['Nombre'];
+  document.getElementById('np-nombre').value = p['Nombre'];
+  document.getElementById('np-precio').value = p['Precio Final ($)'];
+  document.getElementById('np-rev').value = p['Precio Revendedor ($)'];
+  openModal('modal-producto');
+}
+
+async function borrarProducto(nombre) {
+  if (!confirm(`¿Borrar "${nombre}" de productos? Esto elimina TODAS las filas con ese nombre en el Sheet (útil para limpiar duplicados).`)) return;
+  const ok = await saveToSheet('Productos', 'eliminar', {}, 'Nombre', nombre);
+  if (ok) {
+    DATA.productos = DATA.productos.filter(p => p['Nombre']?.trim().toLowerCase() !== nombre.trim().toLowerCase());
+    renderProductos();
+    toast('✓ Producto borrado del Sheet');
+  }
+}
 
 
 // ── GUARDAR EN SHEET ──
@@ -846,9 +879,19 @@ async function guardarProducto() {
   const precio = document.getElementById('np-precio').value;
   const rev = document.getElementById('np-rev').value || Math.round(precio*0.8);
   if (!nombre||!precio) { toast('Completá nombre y precio','error'); return; }
-  const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':'','Margen %':''};
-  DATA.productos.push(obj);
-  const ok = await saveToSheet('Productos', 'agregar', obj);
+  const idx = DATA.productos.findIndex(p=>p['Nombre']?.trim().toLowerCase()===nombre.toLowerCase());
+  let ok;
+  if (idx>=0) {
+    // Actualiza en vez de agregar — preserva Costo($)/Margen% existentes en vez de vaciarlos
+    const existente = DATA.productos[idx];
+    const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':existente['Costo ($)']??'','Margen %':existente['Margen %']??''};
+    DATA.productos[idx] = obj;
+    ok = await saveToSheet('Productos', 'actualizar', obj, 'Nombre', existente['Nombre'] || nombre);
+  } else {
+    const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':'','Margen %':''};
+    DATA.productos.push(obj);
+    ok = await saveToSheet('Productos', 'agregar', obj);
+  }
   closeModal('modal-producto');
   renderProductos();
   if (ok) toast('✓ Producto guardado en Sheet');
