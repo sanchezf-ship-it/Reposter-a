@@ -433,6 +433,17 @@ function cerrarSesion() {
 const fmt = n => (!n && n!==0) ? '—' : '$' + Math.round(Number(n)).toLocaleString('es-AR');
 const fmtUSD = n => !n ? '—' : 'U$S ' + Number(n).toFixed(0);
 const today = () => new Date().toLocaleDateString('es-AR');
+// Convierte "2026-07-05T00:00:00.000Z" o "2026-07-05" a "05/07/2026". Si ya viene en
+// formato es-AR o no se puede parsear, lo devuelve tal cual.
+const fmtDate = (raw) => {
+  if (!raw) return '';
+  const iso = String(raw).split('T')[0];
+  const partes = iso.split('-');
+  if (partes.length === 3 && partes[0].length === 4) {
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+  return raw;
+};
 const todayISO = () => {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -498,20 +509,35 @@ async function cargarDolar() {
 // ── SHEET ──
 const API_URL = 'https://script.google.com/macros/s/AKfycbx3Nkhv0oLBEnBDha72--a34-gJcTtDTZCzzLbU_11BrzW1TIAk69Twpf7hShOG8wEZWQ/exec';
 
+// Distingue "la hoja está vacía" de "no pudimos leerla" — antes ambos casos
+// devolvían [] y la UI los mostraba igual ("Sin resultados"), sin forma de saber
+// si en realidad falló la conexión.
+let LOAD_ERRORS = {};
 async function cargarSheet(hoja, intentos=3) {
   for (let i = 0; i < intentos; i++) {
     try {
       const res = await fetch(`${API_URL}?sheet=${encodeURIComponent(hoja)}`);
       if (!res.ok) { await new Promise(r => setTimeout(r, 1000)); continue; }
       const text = await res.text();
-      if (!text || text.trim() === '') return [];
+      if (!text || text.trim() === '') { LOAD_ERRORS[hoja] = false; return []; }
       const data = JSON.parse(text);
-      if (Array.isArray(data)) return data;
+      if (Array.isArray(data)) { LOAD_ERRORS[hoja] = false; return data; }
     } catch(e) {
       if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
     }
   }
+  LOAD_ERRORS[hoja] = true;
   return [];
+}
+
+function estadoVacio(hoja, mensajeVacio) {
+  if (LOAD_ERRORS[hoja]) {
+    return `<div style="padding:30px;text-align:center;color:var(--text3);">
+      No se pudo conectar con el Sheet.
+      <div style="margin-top:10px;"><button class="btn btn-secondary btn-sm" onclick="cargarTodo()">Reintentar</button></div>
+    </div>`;
+  }
+  return `<div style="padding:30px;text-align:center;color:var(--text3);">${mensajeVacio}</div>`;
 }
 
 async function cargarTodo() {
@@ -571,14 +597,27 @@ function calcularCosto(prod) {
 function renderPackaging(f='') {
   const el = document.getElementById('packaging-list');
   const list = DATA.packaging.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
-  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin packaging cargado</div>'; return; }
+  if (!list.length) { el.innerHTML=estadoVacio('Packaging','Sin packaging cargado'); return; }
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(m=>`
-    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||'u'} · ${m['Última actualización']||''}</div></div>
+    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||'u'} · ${fmtDate(m['Última actualización'])}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio $ unitario']||m['Precio ($)'])}</div>
-    <button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
+    <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
+      <button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>
+      <button class="badge badge-red" onclick="borrarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Borrar</button>
+    </div></div></div>`
   ).join('') + '</div>';
 }
 function filtrarPackaging(v) { renderPackaging(v); }
+
+async function borrarPackaging(nombre) {
+  if (!confirm(`¿Borrar "${nombre}" de packaging? Esto elimina TODAS las filas con ese nombre en el Sheet.`)) return;
+  const ok = await saveToSheet('Packaging', 'eliminar', {}, 'Nombre', nombre);
+  if (ok) {
+    DATA.packaging = DATA.packaging.filter(m => m['Nombre']?.trim().toLowerCase() !== nombre.trim().toLowerCase());
+    renderPackaging();
+    toast('✓ Packaging borrado del Sheet');
+  }
+}
 
 function editarPackaging(nombre) {
   const m = DATA.packaging.find(x => x['Nombre'] === nombre);
@@ -595,19 +634,20 @@ async function guardarPackaging() {
   const precio = document.getElementById('npk-precio').value;
   const unidad = document.getElementById('npk-unidad').value;
   if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
-  const idx = DATA.packaging.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
+  const idx = DATA.packaging.findIndex(m=>m['Nombre']?.trim().toLowerCase()===nombre.toLowerCase());
   const obj = {'Nombre':nombre,'Precio $ unitario':Number(precio),'Unidad':unidad,'Ult. actualización':today()};
+  let ok;
   if (idx>=0) {
     DATA.packaging[idx]=obj;
-    await saveToSheet('Packaging', 'actualizar', obj, 'Nombre', nombre);
+    ok = await saveToSheet('Packaging', 'actualizar', obj, 'Nombre', DATA.packaging[idx]['Nombre'] || nombre);
   } else {
     DATA.packaging.push(obj);
-    await saveToSheet('Packaging', 'agregar', obj);
+    ok = await saveToSheet('Packaging', 'agregar', obj);
   }
   DATA.packaging.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
   closeModal('modal-packaging');
   renderPackaging();
-  toast('✓ Packaging guardado en Sheet');
+  if (ok) toast('✓ Packaging guardado en Sheet');
 }
 
 function addPkgRow() {
@@ -736,7 +776,7 @@ function renderInicio() {
 function renderProductos(f='') {
   const el = document.getElementById('productos-list');
   const list = DATA.productos.filter(p=>!f||p['Nombre']?.toLowerCase().includes(f.toLowerCase()));
-  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
+  if (!list.length) { el.innerHTML=estadoVacio('Productos','Sin resultados'); return; }
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(p=>{
     const c = calcularCosto(p['Nombre']);
     const costo = c!==null ? c : Number(p['Costo ($)'])||0;
@@ -775,13 +815,30 @@ async function saveToSheet(sheet, accion, datos, buscarCol=null, buscarVal=null,
   return false;
 }
 
-async function reemplazarHoja(sheet, filas) {
-  try {
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ sheet, accion: 'reemplazar_hoja', filas })
-    });
-  } catch(e) { console.error('Error reemplazando hoja:', e); }
+async function reemplazarHoja(sheet, filas, intentos=3) {
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ sheet, accion: 'reemplazar_hoja', filas })
+      });
+      const text = await res.text();
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch(_) {}
+      if (res.ok && parsed && parsed.ok) return true;
+      if (res.ok && parsed && parsed.error) {
+        console.error('Apps Script devolvió error:', parsed.error);
+        toast('⚠ No se guardó: ' + parsed.error, 'error');
+        return false;
+      }
+      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
+    } catch(e) {
+      console.error('Error reemplazando hoja:', e);
+      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  toast('⚠ No se pudo confirmar el guardado. Revisá tu conexión y volvé a intentar.', 'error');
+  return false;
 }
 
 async function guardarProducto() {
@@ -791,10 +848,10 @@ async function guardarProducto() {
   if (!nombre||!precio) { toast('Completá nombre y precio','error'); return; }
   const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':'','Margen %':''};
   DATA.productos.push(obj);
-  await saveToSheet('Productos', 'agregar', obj);
+  const ok = await saveToSheet('Productos', 'agregar', obj);
   closeModal('modal-producto');
   renderProductos();
-  toast('✓ Producto guardado en Sheet');
+  if (ok) toast('✓ Producto guardado en Sheet');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-precio').value='';
   document.getElementById('np-rev').value='';
@@ -804,9 +861,9 @@ async function guardarProducto() {
 function renderMaterias(f='') {
   const el = document.getElementById('materias-list');
   const list = DATA.materias.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
-  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
+  if (!list.length) { el.innerHTML=estadoVacio('MPrimas','Sin resultados'); return; }
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m)=>`
-    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${m['Última actualización']||''}</div></div>
+    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${fmtDate(m['Última actualización'])}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio por unidad ($)'])}</div>
     <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
       <button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>
@@ -862,7 +919,7 @@ async function borrarMateria(nombre) {
 function renderRecetas(f='') {
   const el = document.getElementById('recetas-list');
   const prods = [...new Set(DATA.recetas.map(r=>r['Producto']))].filter(p=>!f||p.toLowerCase().includes(f.toLowerCase()));
-  if (!prods.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin recetas cargadas. Tocá + para agregar.</div>'; return; }
+  if (!prods.length) { el.innerHTML=estadoVacio('Recetas','Sin recetas cargadas. Tocá + para agregar.'); return; }
   el.innerHTML = prods.map(prod=>{
     const ings = DATA.recetas.filter(r=>r['Producto']===prod);
     const c = calcularCosto(prod);
