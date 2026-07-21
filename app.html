@@ -242,7 +242,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="screen-productos" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="Buscar producto..." oninput="filtrarProductos(this.value)">
+    <input type="text" id="productos-search" placeholder="Buscar producto..." oninput="filtrarProductos(this.value)">
   </div>
   <div id="productos-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab admin-fab" onclick="nuevoProducto()">+</button>
@@ -252,7 +252,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="screen-recetas" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="Buscar receta..." oninput="filtrarRecetas(this.value)">
+    <input type="text" id="recetas-search" placeholder="Buscar receta..." oninput="filtrarRecetas(this.value)">
   </div>
   <div id="recetas-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab" onclick="openModal('modal-receta')">+</button>
@@ -262,7 +262,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="screen-materias" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="Buscar ingrediente..." oninput="filtrarMaterias(this.value)">
+    <input type="text" id="materias-search" placeholder="Buscar ingrediente..." oninput="filtrarMaterias(this.value)">
   </div>
   <div id="materias-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab" onclick="openModal('modal-materia')">+</button>
@@ -272,7 +272,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="screen-packaging" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="Buscar packaging..." oninput="filtrarPackaging(this.value)">
+    <input type="text" id="packaging-search" placeholder="Buscar packaging..." oninput="filtrarPackaging(this.value)">
   </div>
   <div id="packaging-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab" onclick="openModal('modal-packaging')">+</button>
@@ -463,6 +463,10 @@ const sameDay = (fechaSheet, yr, mo, dy) => {
   return false;
 };
 
+// Devuelve lo que hay escrito en un buscador, para no perder el filtro activo
+// al re-renderizar una lista después de guardar o borrar.
+const searchVal = (id) => document.getElementById(id)?.value || '';
+
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = `toast ${type} show`;
@@ -563,10 +567,10 @@ async function cargarTodo() {
   DATA.ventas    = ven.filter(r=>r['Producto']||r['producto']);
   DATA.packaging = pkg.filter(r=>r['Nombre']);
   const activeScreen = document.querySelector(".screen.active")?.id?.replace("screen-","");
-  if (activeScreen === "materias") renderMaterias();
-  if (activeScreen === "packaging") renderPackaging();
-  if (activeScreen === "productos") renderProductos();
-  if (activeScreen === "recetas") renderRecetas();
+  if (activeScreen === "materias") renderMaterias(searchVal('materias-search'));
+  if (activeScreen === "packaging") renderPackaging(searchVal('packaging-search'));
+  if (activeScreen === "productos") renderProductos(searchVal('productos-search'));
+  if (activeScreen === "recetas") renderRecetas(searchVal('recetas-search'));
   if (activeScreen === "ventas") { initVentas(); initFiltros(); }
   renderInicio();
   setTimeout(renderInicio, 500); // ensure re-render after data fully processed
@@ -614,7 +618,7 @@ async function borrarPackaging(nombre) {
   const ok = await saveToSheet('Packaging', 'eliminar', {}, 'Nombre', nombre);
   if (ok) {
     DATA.packaging = DATA.packaging.filter(m => m['Nombre']?.trim().toLowerCase() !== nombre.trim().toLowerCase());
-    renderPackaging();
+    renderPackaging(searchVal('packaging-search'));
     toast('✓ Packaging borrado del Sheet');
   }
 }
@@ -646,7 +650,7 @@ async function guardarPackaging() {
   }
   DATA.packaging.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
   closeModal('modal-packaging');
-  renderPackaging();
+  renderPackaging(searchVal('packaging-search'));
   if (ok) toast('✓ Packaging guardado en Sheet');
 }
 
@@ -815,7 +819,7 @@ async function borrarProducto(nombre) {
   const ok = await saveToSheet('Productos', 'eliminar', {}, 'Nombre', nombre);
   if (ok) {
     DATA.productos = DATA.productos.filter(p => p['Nombre']?.trim().toLowerCase() !== nombre.trim().toLowerCase());
-    renderProductos();
+    renderProductos(searchVal('productos-search'));
     toast('✓ Producto borrado del Sheet');
   }
 }
@@ -893,7 +897,7 @@ async function guardarProducto() {
     ok = await saveToSheet('Productos', 'agregar', obj);
   }
   closeModal('modal-producto');
-  renderProductos();
+  renderProductos(searchVal('productos-search'));
   if (ok) toast('✓ Producto guardado en Sheet');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-precio').value='';
@@ -943,7 +947,7 @@ async function guardarMateria() {
   }
   DATA.materias.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
   closeModal('modal-materia');
-  renderMaterias();
+  renderMaterias(searchVal('materias-search'));
   if (ok) toast('✓ Materia prima guardada en Sheet');
   // Si ok es false, saveToSheet ya mostró el toast de error — no mentimos con un success extra.
 }
@@ -953,7 +957,7 @@ async function borrarMateria(nombre) {
   const ok = await saveToSheet('MPrimas', 'eliminar', {}, 'Nombre', nombre);
   if (ok) {
     DATA.materias = DATA.materias.filter(m => m['Nombre']?.trim().toLowerCase() !== nombre.trim().toLowerCase());
-    renderMaterias();
+    renderMaterias(searchVal('materias-search'));
     toast('✓ Materia prima borrada del Sheet');
   }
 }
@@ -1038,10 +1042,10 @@ async function guardarReceta() {
   });
   // Guardar receta completa en Sheet (reemplaza las filas de este producto)
   const todasLasRecetas = DATA.recetas;
-  await reemplazarHoja('Recetas', todasLasRecetas);
+  const ok = await reemplazarHoja('Recetas', todasLasRecetas);
   closeModal('modal-receta');
-  renderRecetas();
-  toast('✓ Receta guardada en Sheet');
+  renderRecetas(searchVal('recetas-search'));
+  if (ok) toast('✓ Receta guardada en Sheet');
 }
 
 // ── VENTAS ──
