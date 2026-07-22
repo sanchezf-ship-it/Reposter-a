@@ -1084,22 +1084,27 @@ async function guardarReceta() {
   if(!prod){toast('Elegí un producto','error');return;}
   const rows=document.querySelectorAll('#nr-ings-list .ing-row');
   if(!rows.length){toast('Agregá al menos un ingrediente','error');return;}
-  DATA.recetas=DATA.recetas.filter(r=>r['Producto']!==prod);
+  // Armamos las filas nuevas ANTES de tocar DATA.recetas. Si alguna fila quedó
+  // con el ingrediente sin elegir o la cantidad vacía, se descarta acá — pero
+  // si TODAS quedan inválidas, frenamos antes de borrar la receta existente
+  // (si no, guardar por error con los campos vacíos borraba la receta entera sin avisar).
   const nuevasFilas=[];
   rows.forEach(row=>{
     const ing=row.querySelector('select').value, qty=row.querySelector('input').value;
     if(ing&&qty){
-      const r={'Producto':prod,'Ingrediente':ing,'Cantidad':Number(qty),'Unidad':row.querySelector('.unit-lbl').textContent};
-      DATA.recetas.push(r);
-      nuevasFilas.push(r);
+      nuevasFilas.push({'Producto':prod,'Ingrediente':ing,'Cantidad':Number(qty),'Unidad':row.querySelector('.unit-lbl').textContent});
     }
   });
+  if(!nuevasFilas.length){toast('Revisá los ingredientes: falta elegir alguno o completar la cantidad','error');return;}
+  DATA.recetas=DATA.recetas.filter(r=>r['Producto']!==prod);
+  nuevasFilas.forEach(r=>DATA.recetas.push(r));
   // Guardar receta completa en Sheet (reemplaza las filas de este producto)
   const todasLasRecetas = DATA.recetas;
   await reemplazarHoja('Recetas', todasLasRecetas);
   closeModal('modal-receta');
   renderRecetas();
-  toast('✓ Receta guardada en Sheet');
+  const descartadas = rows.length - nuevasFilas.length;
+  toast(descartadas > 0 ? `✓ Guardado, pero ${descartadas} fila(s) incompleta(s) no se guardaron` : '✓ Receta guardada en Sheet');
 }
 
 // ── VENTAS ──
