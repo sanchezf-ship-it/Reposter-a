@@ -136,6 +136,36 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .user-role { font-size: 11px; padding: 3px 8px; border-radius: 99px; font-weight: 600; }
 .role-admin { background: var(--accent-light); color: var(--accent); }
 .role-empleado { background: var(--gold-light); color: var(--gold); }
+
+.star-card { background: linear-gradient(135deg, #C4922A 0%, #DDA83A 100%); border-radius: var(--radius); padding: 20px; color: #fff; margin-bottom: 10px; }
+.star-card .tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; margin-bottom: 6px; }
+.star-card .name { font-family: 'DM Serif Display', serif; font-size: 24px; margin-bottom: 14px; }
+.star-card .row { display: flex; gap: 24px; }
+.star-card .stat-mini .lbl { font-size: 11px; opacity: 0.8; }
+.star-card .stat-mini .val { font-size: 18px; font-weight: 700; margin-top: 2px; }
+
+.cmp-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.cmp-row:last-child { border-bottom: none; }
+.cmp-row .lbl { font-size: 13px; color: var(--text2); }
+.cmp-row .val { font-size: 16px; font-weight: 600; }
+.cmp-row .delta { font-size: 12px; font-weight: 600; margin-left: 8px; }
+.cmp-row .delta.up { color: var(--accent); }
+.cmp-row .delta.down { color: var(--danger); }
+
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.rank-item:last-child { border-bottom: none; }
+.rank-num { width: 22px; height: 22px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text2); flex-shrink: 0; }
+.rank-num.top { background: var(--gold-light); color: var(--gold); }
+.rank-info { flex: 1; min-width: 0; }
+.rank-info .name { font-size: 14px; font-weight: 500; }
+.rank-info .meta { font-size: 12px; color: var(--text3); }
+.rank-val { text-align: right; }
+.rank-val .gan { font-size: 14px; font-weight: 600; color: var(--accent); }
+
+.mix-bar { height: 10px; border-radius: 99px; background: var(--surface2); overflow: hidden; display: flex; margin-bottom: 10px; }
+.mix-bar .seg-a { background: var(--accent); }
+.mix-bar .seg-b { background: var(--gold); }
+.mix-legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); }
 </style>
 </head>
 <body>
@@ -154,6 +184,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
 <nav class="nav">
   <button class="nav-btn active" onclick="showScreen('inicio')" data-screen="inicio">🏠 Inicio</button>
+  <button class="nav-btn" onclick="showScreen('dashboard')" data-screen="dashboard">📈 Dashboard</button>
   <button class="nav-btn" onclick="showScreen('ventas')" data-screen="ventas">🛒 Ventas</button>
   <button class="nav-btn" onclick="showScreen('productos')" data-screen="productos">🏷️ Productos</button>
   <button class="nav-btn admin-only" onclick="showScreen('recetas')" data-screen="recetas">📋 Recetas</button>
@@ -175,8 +206,26 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <div class="card" style="padding:4px 0;">
     <div class="list-item" style="padding:14px 16px;"><div><div class="name">Cargar venta</div><div class="meta">Registrá lo que vendiste</div></div><button class="btn btn-primary btn-sm" onclick="showScreen('ventas')">Ir →</button></div>
     <div class="list-item admin-only" style="padding:14px 16px;"><div><div class="name">Actualizar materia prima</div><div class="meta">Cuando cambia el precio</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('materias')">Ir →</button></div>
-    <div class="list-item admin-only" style="padding:14px 16px;border:none;"><div><div class="name">Nuevo producto</div><div class="meta">Agregar a la lista</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('productos');setTimeout(()=>nuevoProducto(),200)">Ir →</button></div>
+    <div class="list-item admin-only" style="padding:14px 16px;border:none;"><div><div class="name">Nuevo producto</div><div class="meta">Agregar a la lista</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('productos');setTimeout(()=>openModal('modal-producto'),200)">Ir →</button></div>
   </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="screen-dashboard" class="screen">
+  <div class="section-label">Producto estrella del mes</div>
+  <div id="dash-estrella"></div>
+
+  <div class="section-label">Este mes vs. mes anterior</div>
+  <div class="card" id="dash-comparacion"></div>
+
+  <div class="section-label">Top 5 productos · por ganancia</div>
+  <div class="card" id="dash-ranking"></div>
+
+  <div class="section-label">Consumidor final vs. revendedor</div>
+  <div class="card" id="dash-mix-cliente"></div>
+
+  <div class="section-label">Métodos de pago del mes</div>
+  <div class="card" id="dash-metodos"></div>
 </div>
 
 <!-- VENTAS -->
@@ -242,17 +291,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="screen-productos" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="productos-search" placeholder="Buscar producto..." oninput="filtrarProductos(this.value)">
+    <input type="text" placeholder="Buscar producto..." oninput="filtrarProductos(this.value)">
   </div>
   <div id="productos-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
-  <button class="fab admin-fab" onclick="nuevoProducto()">+</button>
+  <button class="fab admin-fab" onclick="openModal('modal-producto')">+</button>
 </div>
 
 <!-- RECETAS -->
 <div id="screen-recetas" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="recetas-search" placeholder="Buscar receta..." oninput="filtrarRecetas(this.value)">
+    <input type="text" placeholder="Buscar receta..." oninput="filtrarRecetas(this.value)">
   </div>
   <div id="recetas-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab" onclick="openModal('modal-receta')">+</button>
@@ -262,7 +311,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="screen-materias" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="materias-search" placeholder="Buscar ingrediente..." oninput="filtrarMaterias(this.value)">
+    <input type="text" placeholder="Buscar ingrediente..." oninput="filtrarMaterias(this.value)">
   </div>
   <div id="materias-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab" onclick="openModal('modal-materia')">+</button>
@@ -272,7 +321,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="screen-packaging" class="screen">
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="packaging-search" placeholder="Buscar packaging..." oninput="filtrarPackaging(this.value)">
+    <input type="text" placeholder="Buscar packaging..." oninput="filtrarPackaging(this.value)">
   </div>
   <div id="packaging-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
   <button class="fab" onclick="openModal('modal-packaging')">+</button>
@@ -329,7 +378,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="modal-producto" class="modal-bg" onclick="if(event.target===this)closeModal('modal-producto')">
   <div class="modal">
     <div class="modal-handle"></div>
-    <h2 id="modal-producto-title">Nuevo producto</h2>
+    <h2>Nuevo producto</h2>
     <div class="form-group"><label>Nombre</label><input type="text" id="np-nombre" placeholder="Ej: Rogel mega"></div>
     <div class="form-row">
       <div class="form-group"><label>Precio venta ($)</label><input type="number" id="np-precio" placeholder="0" oninput="document.getElementById('np-rev').placeholder=Math.round(this.value*0.8)||'Auto'"></div>
@@ -433,17 +482,6 @@ function cerrarSesion() {
 const fmt = n => (!n && n!==0) ? '—' : '$' + Math.round(Number(n)).toLocaleString('es-AR');
 const fmtUSD = n => !n ? '—' : 'U$S ' + Number(n).toFixed(0);
 const today = () => new Date().toLocaleDateString('es-AR');
-// Convierte "2026-07-05T00:00:00.000Z" o "2026-07-05" a "05/07/2026". Si ya viene en
-// formato es-AR o no se puede parsear, lo devuelve tal cual.
-const fmtDate = (raw) => {
-  if (!raw) return '';
-  const iso = String(raw).split('T')[0];
-  const partes = iso.split('-');
-  if (partes.length === 3 && partes[0].length === 4) {
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  }
-  return raw;
-};
 const todayISO = () => {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -463,14 +501,6 @@ const sameDay = (fechaSheet, yr, mo, dy) => {
   return false;
 };
 
-// Devuelve lo que hay escrito en un buscador, para no perder el filtro activo
-// al re-renderizar una lista después de guardar o borrar.
-const searchVal = (id) => document.getElementById(id)?.value || '';
-
-// Normaliza un nombre para comparar/buscar ignorando mayúsculas, espacios y tildes.
-// Antes "AZUCAR" y "Azúcar" se consideraban distintos y se duplicaban — esto lo evita.
-const normalizar = (s) => String(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = `toast ${type} show`;
@@ -489,6 +519,7 @@ function showScreen(name) {
   if (name==='packaging') renderPackaging();
   if (name==='resumen') renderResumen();
   if (name==='inicio') renderInicio();
+  if (name==='dashboard') renderDashboard();
   if (name==='ventas') { setTimeout(initVentas, 100); setTimeout(initFiltros, 200); }
   if (name==='config') renderUsuarios();
 }
@@ -517,35 +548,20 @@ async function cargarDolar() {
 // ── SHEET ──
 const API_URL = 'https://script.google.com/macros/s/AKfycbx3Nkhv0oLBEnBDha72--a34-gJcTtDTZCzzLbU_11BrzW1TIAk69Twpf7hShOG8wEZWQ/exec';
 
-// Distingue "la hoja está vacía" de "no pudimos leerla" — antes ambos casos
-// devolvían [] y la UI los mostraba igual ("Sin resultados"), sin forma de saber
-// si en realidad falló la conexión.
-let LOAD_ERRORS = {};
 async function cargarSheet(hoja, intentos=3) {
   for (let i = 0; i < intentos; i++) {
     try {
       const res = await fetch(`${API_URL}?sheet=${encodeURIComponent(hoja)}`);
       if (!res.ok) { await new Promise(r => setTimeout(r, 1000)); continue; }
       const text = await res.text();
-      if (!text || text.trim() === '') { LOAD_ERRORS[hoja] = false; return []; }
+      if (!text || text.trim() === '') return [];
       const data = JSON.parse(text);
-      if (Array.isArray(data)) { LOAD_ERRORS[hoja] = false; return data; }
+      if (Array.isArray(data)) return data;
     } catch(e) {
       if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
     }
   }
-  LOAD_ERRORS[hoja] = true;
   return [];
-}
-
-function estadoVacio(hoja, mensajeVacio) {
-  if (LOAD_ERRORS[hoja]) {
-    return `<div style="padding:30px;text-align:center;color:var(--text3);">
-      No se pudo conectar con el Sheet.
-      <div style="margin-top:10px;"><button class="btn btn-secondary btn-sm" onclick="cargarTodo()">Reintentar</button></div>
-    </div>`;
-  }
-  return `<div style="padding:30px;text-align:center;color:var(--text3);">${mensajeVacio}</div>`;
 }
 
 async function cargarTodo() {
@@ -560,8 +576,6 @@ async function cargarTodo() {
     const actualKey = Object.keys(rows[0]).find(k => k.toLowerCase().replace(/[^a-z]/g,'') === keyCol.toLowerCase().replace(/[^a-z]/g,'')) || keyCol;
     return rows.filter(r => r[actualKey]).map(r => {
       if (actualKey !== keyCol) { r[keyCol] = r[actualKey]; }
-      // Trim whitespace on the key column so client-side matching (find/findIndex) is reliable
-      if (typeof r[keyCol] === 'string') { r[keyCol] = r[keyCol].trim(); }
       return r;
     });
   }
@@ -571,11 +585,12 @@ async function cargarTodo() {
   DATA.ventas    = ven.filter(r=>r['Producto']||r['producto']);
   DATA.packaging = pkg.filter(r=>r['Nombre']);
   const activeScreen = document.querySelector(".screen.active")?.id?.replace("screen-","");
-  if (activeScreen === "materias") renderMaterias(searchVal('materias-search'));
-  if (activeScreen === "packaging") renderPackaging(searchVal('packaging-search'));
-  if (activeScreen === "productos") renderProductos(searchVal('productos-search'));
-  if (activeScreen === "recetas") renderRecetas(searchVal('recetas-search'));
+  if (activeScreen === "materias") renderMaterias();
+  if (activeScreen === "packaging") renderPackaging();
+  if (activeScreen === "productos") renderProductos();
+  if (activeScreen === "recetas") renderRecetas();
   if (activeScreen === "ventas") { initVentas(); initFiltros(); }
+  if (activeScreen === "dashboard") renderDashboard();
   renderInicio();
   setTimeout(renderInicio, 500); // ensure re-render after data fully processed
   // Poblar selector receta
@@ -591,57 +606,124 @@ function calcularCosto(prod) {
   if (!ings.length) return null;
   let t = 0;
   for (const ing of ings) {
-    const mp = DATA.materias.find(m => normalizar(m['Nombre'])===normalizar(ing['Ingrediente']));
+    const mp = DATA.materias.find(m => m['Nombre']?.toLowerCase()===ing['Ingrediente']?.toLowerCase());
     if (mp) { t += (Number(mp['Precio por unidad ($)'])||0) * (Number(ing['Cantidad'])||0); continue; }
-    const pk = DATA.packaging.find(p => normalizar(p['Nombre'])===normalizar(ing['Ingrediente']));
+    const pk = DATA.packaging.find(p => p['Nombre']?.toLowerCase()===ing['Ingrediente']?.toLowerCase());
     if (pk) t += (Number(pk['Precio $ unitario']||pk['Precio ($)'])||0) * (Number(ing['Cantidad'])||0);
   }
   return t;
 }
 
-// Detecta si una receta tiene algo mal cargado (cantidad no numérica, ingrediente que
-// no aparece en Materias/Packaging, o precio no numérico) — para avisar en vez de
-// tratarlo como $0 en silencio, como pasó con la levadura cargada como fecha.
-function costoTieneProblema(prod) {
-  const ings = DATA.recetas.filter(r => r['Producto']===prod);
-  for (const ing of ings) {
-    if (ing['Cantidad']===''||ing['Cantidad']===undefined||ing['Cantidad']===null||isNaN(Number(ing['Cantidad']))) return true;
-    const mp = DATA.materias.find(m => normalizar(m['Nombre'])===normalizar(ing['Ingrediente']));
-    const pk = DATA.packaging.find(p => normalizar(p['Nombre'])===normalizar(ing['Ingrediente']));
-    if (!mp && !pk) return true;
-    if (mp && isNaN(Number(mp['Precio por unidad ($)']))) return true;
-    if (pk && isNaN(Number(pk['Precio $ unitario']??pk['Precio ($)']))) return true;
-  }
-  return false;
-}
-
 // ── INICIO ──
+
+// ── DASHBOARD ──
+function renderDashboard() {
+  const ahora = new Date();
+  const mesAct = ahora.getMonth()+1, anioAct = ahora.getFullYear();
+  let mesAnt = mesAct - 1, anioAnt = anioAct;
+  if (mesAnt < 1) { mesAnt = 12; anioAnt--; }
+
+  const ventasDeMes = (anio, mes) => DATA.ventas.filter(v => {
+    if (!v['Fecha']) return false;
+    const p = v['Fecha'].split('T')[0].split('-');
+    if (p.length === 3) return Number(p[0])===anio && Number(p[1])===mes;
+    const p2 = v['Fecha'].split('/');
+    return p2.length === 3 && Number(p2[2])===anio && Number(p2[1])===mes;
+  });
+
+  const vAct = ventasDeMes(anioAct, mesAct);
+  const vAnt = ventasDeMes(anioAnt, mesAnt);
+  const sum = (arr, campo) => arr.reduce((s,v)=>s+(Number(v[campo])||0), 0);
+
+  // Comparación mes vs mes
+  const ingAct = sum(vAct,'Ingreso ($)'), ganAct = sum(vAct,'Ganancia ($)'), cantAct = vAct.length;
+  const ingAnt = sum(vAnt,'Ingreso ($)'), ganAnt = sum(vAnt,'Ganancia ($)'), cantAnt = vAnt.length;
+
+  const delta = (act, ant) => {
+    if (!ant) return act>0 ? { txt:'nuevo', cls:'up' } : { txt:'—', cls:'' };
+    const pct = Math.round((act-ant)/ant*100);
+    return { txt: (pct>=0?'↑ ':'↓ ')+Math.abs(pct)+'%', cls: pct>=0?'up':'down' };
+  };
+  const dIng = delta(ingAct, ingAnt), dGan = delta(ganAct, ganAnt), dCant = delta(cantAct, cantAnt);
+
+  document.getElementById('dash-comparacion').innerHTML = `
+    <div class="cmp-row"><div class="lbl">Ingresos</div><div><span class="val">${fmt(ingAct)}</span><span class="delta ${dIng.cls}">${dIng.txt}</span></div></div>
+    <div class="cmp-row"><div class="lbl">Ganancia</div><div><span class="val">${fmt(ganAct)}</span><span class="delta ${dGan.cls}">${dGan.txt}</span></div></div>
+    <div class="cmp-row"><div class="lbl">Cantidad de ventas</div><div><span class="val">${cantAct}</span><span class="delta ${dCant.cls}">${dCant.txt}</span></div></div>
+  `;
+
+  // Producto estrella + ranking (por ganancia, mes actual)
+  const porProducto = {};
+  vAct.forEach(v => {
+    const p = v['Producto']; if (!p) return;
+    if (!porProducto[p]) porProducto[p] = { ing:0, gan:0, cant:0 };
+    porProducto[p].ing += Number(v['Ingreso ($)'])||0;
+    porProducto[p].gan += Number(v['Ganancia ($)'])||0;
+    porProducto[p].cant += Number(v['Cantidad'])||1;
+  });
+  const ranking = Object.entries(porProducto)
+    .map(([nombre, d]) => ({ nombre, ...d, margen: d.ing>0 ? Math.round(d.gan/d.ing*100) : 0 }))
+    .sort((a,b) => b.gan - a.gan);
+
+  if (!ranking.length) {
+    document.getElementById('dash-estrella').innerHTML = '<div class="card" style="text-align:center;color:var(--text3);padding:24px;">Todavía no hay ventas cargadas este mes</div>';
+    document.getElementById('dash-ranking').innerHTML = '<div style="padding:8px;text-align:center;color:var(--text3);">Sin datos</div>';
+  } else {
+    const topProd = ranking[0];
+    document.getElementById('dash-estrella').innerHTML = `
+      <div class="star-card">
+        <div class="tag">🏆 Producto estrella</div>
+        <div class="name">${topProd.nombre}</div>
+        <div class="row">
+          <div class="stat-mini"><div class="lbl">Ganancia</div><div class="val">${fmt(topProd.gan)}</div></div>
+          <div class="stat-mini"><div class="lbl">Margen</div><div class="val">${topProd.margen}%</div></div>
+          <div class="stat-mini"><div class="lbl">Vendidos</div><div class="val">${topProd.cant}</div></div>
+        </div>
+      </div>`;
+
+    document.getElementById('dash-ranking').innerHTML = ranking.slice(0,5).map((r,i) => `
+      <div class="rank-item">
+        <div class="rank-num${i===0?' top':''}">${i+1}</div>
+        <div class="rank-info"><div class="name">${r.nombre}</div><div class="meta">${r.cant} vendidos · ${r.margen}% margen</div></div>
+        <div class="rank-val"><div class="gan">${fmt(r.gan)}</div></div>
+      </div>`).join('');
+  }
+
+  // Mix consumidor final vs revendedor (por ganancia)
+  const finalGan = sum(vAct.filter(v=>v['Tipo cliente']==='Consumidor final'), 'Ganancia ($)');
+  const revGan = sum(vAct.filter(v=>v['Tipo cliente']==='Revendedor'), 'Ganancia ($)');
+  const totalGanMix = finalGan + revGan;
+  const pctFinal = totalGanMix>0 ? Math.round(finalGan/totalGanMix*100) : 0;
+  const pctRev = totalGanMix>0 ? 100 - pctFinal : 0;
+  document.getElementById('dash-mix-cliente').innerHTML = totalGanMix>0 ? `
+    <div class="mix-bar"><div class="seg-a" style="width:${pctFinal}%"></div><div class="seg-b" style="width:${pctRev}%"></div></div>
+    <div class="mix-legend"><span>🟢 Final ${pctFinal}% (${fmt(finalGan)})</span><span>🟡 Revendedor ${pctRev}% (${fmt(revGan)})</span></div>
+  ` : '<div style="text-align:center;color:var(--text3);">Sin datos este mes</div>';
+
+  // Método de pago más usado
+  const porMetodo = {};
+  vAct.forEach(v => {
+    const m = v['Método de pago'] || 'Sin especificar';
+    porMetodo[m] = (porMetodo[m]||0) + 1;
+  });
+  const metodos = Object.entries(porMetodo).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('dash-metodos').innerHTML = metodos.length ? metodos.map(([m,c],i) => `
+    <div class="list-item"><div class="name">${i===0?'⭐ ':''}${m}</div><div class="price">${c} ${c===1?'venta':'ventas'}</div></div>
+  `).join('') : '<div style="text-align:center;color:var(--text3);">Sin datos este mes</div>';
+}
 
 // ── PACKAGING ──
 function renderPackaging(f='') {
   const el = document.getElementById('packaging-list');
-  const list = DATA.packaging.filter(m=>!f||normalizar(m['Nombre']).includes(normalizar(f)));
-  if (!list.length) { el.innerHTML=estadoVacio('Packaging','Sin packaging cargado'); return; }
+  const list = DATA.packaging.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
+  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin packaging cargado</div>'; return; }
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(m=>`
-    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||'u'} · ${fmtDate(m['Última actualización'])}</div></div>
+    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||'u'} · ${m['Última actualización']||''}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio $ unitario']||m['Precio ($)'])}</div>
-    <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
-      <button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>
-      <button class="badge badge-red" onclick="borrarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Borrar</button>
-    </div></div></div>`
+    <button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
   ).join('') + '</div>';
 }
 function filtrarPackaging(v) { renderPackaging(v); }
-
-async function borrarPackaging(nombre) {
-  if (!confirm(`¿Borrar "${nombre}" de packaging? Esto elimina TODAS las filas con ese nombre en el Sheet.`)) return;
-  const ok = await saveToSheet('Packaging', 'eliminar', {}, 'Nombre', nombre);
-  if (ok) {
-    DATA.packaging = DATA.packaging.filter(m => normalizar(m['Nombre']) !== normalizar(nombre));
-    renderPackaging(searchVal('packaging-search'));
-    toast('✓ Packaging borrado del Sheet');
-  }
-}
 
 function editarPackaging(nombre) {
   const m = DATA.packaging.find(x => x['Nombre'] === nombre);
@@ -658,20 +740,19 @@ async function guardarPackaging() {
   const precio = document.getElementById('npk-precio').value;
   const unidad = document.getElementById('npk-unidad').value;
   if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
-  const idx = DATA.packaging.findIndex(m=>normalizar(m['Nombre'])===normalizar(nombre));
+  const idx = DATA.packaging.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
   const obj = {'Nombre':nombre,'Precio $ unitario':Number(precio),'Unidad':unidad,'Ult. actualización':today()};
-  let ok;
   if (idx>=0) {
     DATA.packaging[idx]=obj;
-    ok = await saveToSheet('Packaging', 'actualizar', obj, 'Nombre', DATA.packaging[idx]['Nombre'] || nombre);
+    await saveToSheet('Packaging', 'actualizar', obj, 'Nombre', nombre);
   } else {
     DATA.packaging.push(obj);
-    ok = await saveToSheet('Packaging', 'agregar', obj);
+    await saveToSheet('Packaging', 'agregar', obj);
   }
   DATA.packaging.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
   closeModal('modal-packaging');
-  renderPackaging(searchVal('packaging-search'));
-  if (ok) toast('✓ Packaging guardado en Sheet');
+  renderPackaging();
+  toast('✓ Packaging guardado en Sheet');
 }
 
 function addPkgRow() {
@@ -799,104 +880,38 @@ function renderInicio() {
 // ── PRODUCTOS ──
 function renderProductos(f='') {
   const el = document.getElementById('productos-list');
-  const list = DATA.productos.filter(p=>!f||normalizar(p['Nombre']).includes(normalizar(f)));
-  if (!list.length) { el.innerHTML=estadoVacio('Productos','Sin resultados'); return; }
+  const list = DATA.productos.filter(p=>!f||p['Nombre']?.toLowerCase().includes(f.toLowerCase()));
+  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(p=>{
     const c = calcularCosto(p['Nombre']);
     const costo = c!==null ? c : Number(p['Costo ($)'])||0;
     const precio = Number(p['Precio Final ($)'])||0;
     const margen = precio>0&&costo>0 ? Math.round((precio-costo)/precio*100) : null;
-    const problema = c!==null && costoTieneProblema(p['Nombre']);
-    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}${problema?' <span title="Hay una cantidad o ingrediente sin cargar bien en la receta" style="color:var(--danger);">⚠ revisar receta</span>':''}</div></div>
-    <div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}
-    <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
-      <button class="badge badge-gold" onclick="editarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>
-      <button class="badge badge-red" onclick="borrarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Borrar</button>
-    </div></div></div>`;
+    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div><div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}</div></div>`;
   }).join('') + '</div>';
 }
 function filtrarProductos(v) { renderProductos(v); }
 
-function nuevoProducto() {
-  document.getElementById('modal-producto-title').textContent = 'Nuevo producto';
-  document.getElementById('np-nombre').value = '';
-  document.getElementById('np-precio').value = '';
-  document.getElementById('np-rev').value = '';
-  openModal('modal-producto');
-}
-
-function editarProducto(nombre) {
-  const p = DATA.productos.find(x => x['Nombre'] === nombre);
-  if (!p) return;
-  document.getElementById('modal-producto-title').textContent = 'Editar: '+p['Nombre'];
-  document.getElementById('np-nombre').value = p['Nombre'];
-  document.getElementById('np-precio').value = p['Precio Final ($)'];
-  document.getElementById('np-rev').value = p['Precio Revendedor ($)'];
-  openModal('modal-producto');
-}
-
-async function borrarProducto(nombre) {
-  if (!confirm(`¿Borrar "${nombre}" de productos? Esto elimina TODAS las filas con ese nombre en el Sheet (útil para limpiar duplicados).`)) return;
-  const ok = await saveToSheet('Productos', 'eliminar', {}, 'Nombre', nombre);
-  if (ok) {
-    DATA.productos = DATA.productos.filter(p => normalizar(p['Nombre']) !== normalizar(nombre));
-    renderProductos(searchVal('productos-search'));
-    toast('✓ Producto borrado del Sheet');
-  }
-}
-
 
 // ── GUARDAR EN SHEET ──
-async function saveToSheet(sheet, accion, datos, buscarCol=null, buscarVal=null, intentos=3) {
-  const body = { sheet, accion, datos };
-  if (buscarCol) { body.buscarCol = buscarCol; body.buscarVal = buscarVal; }
-  for (let i = 0; i < intentos; i++) {
-    try {
-      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
-      const text = await res.text();
-      let parsed = null;
-      try { parsed = JSON.parse(text); } catch(_) {}
-      if (res.ok && parsed && parsed.ok) return true; // confirmado por el servidor
-      if (res.ok && parsed && parsed.error) {
-        console.error('Apps Script devolvió error:', parsed.error);
-        toast('⚠ No se guardó: ' + parsed.error, 'error');
-        return false;
-      }
-      // res no-ok o respuesta rara → reintentar
-      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
-    } catch(e) {
-      console.error('Error guardando en Sheet:', e);
-      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
-    }
-  }
-  toast('⚠ No se pudo confirmar el guardado. Revisá tu conexión y volvé a intentar.', 'error');
-  return false;
+async function saveToSheet(sheet, accion, datos, buscarCol=null, buscarVal=null) {
+  try {
+    const body = { sheet, accion, datos };
+    if (buscarCol) { body.buscarCol = buscarCol; body.buscarVal = buscarVal; }
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  } catch(e) { console.error('Error guardando en Sheet:', e); }
 }
 
-async function reemplazarHoja(sheet, filas, intentos=3) {
-  for (let i = 0; i < intentos; i++) {
-    try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ sheet, accion: 'reemplazar_hoja', filas })
-      });
-      const text = await res.text();
-      let parsed = null;
-      try { parsed = JSON.parse(text); } catch(_) {}
-      if (res.ok && parsed && parsed.ok) return true;
-      if (res.ok && parsed && parsed.error) {
-        console.error('Apps Script devolvió error:', parsed.error);
-        toast('⚠ No se guardó: ' + parsed.error, 'error');
-        return false;
-      }
-      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
-    } catch(e) {
-      console.error('Error reemplazando hoja:', e);
-      if (i < intentos-1) await new Promise(r => setTimeout(r, 1000));
-    }
-  }
-  toast('⚠ No se pudo confirmar el guardado. Revisá tu conexión y volvé a intentar.', 'error');
-  return false;
+async function reemplazarHoja(sheet, filas) {
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ sheet, accion: 'reemplazar_hoja', filas })
+    });
+  } catch(e) { console.error('Error reemplazando hoja:', e); }
 }
 
 async function guardarProducto() {
@@ -904,22 +919,12 @@ async function guardarProducto() {
   const precio = document.getElementById('np-precio').value;
   const rev = document.getElementById('np-rev').value || Math.round(precio*0.8);
   if (!nombre||!precio) { toast('Completá nombre y precio','error'); return; }
-  const idx = DATA.productos.findIndex(p=>normalizar(p['Nombre'])===normalizar(nombre));
-  let ok;
-  if (idx>=0) {
-    // Actualiza en vez de agregar — preserva Costo($)/Margen% existentes en vez de vaciarlos
-    const existente = DATA.productos[idx];
-    const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':existente['Costo ($)']??'','Margen %':existente['Margen %']??''};
-    DATA.productos[idx] = obj;
-    ok = await saveToSheet('Productos', 'actualizar', obj, 'Nombre', existente['Nombre'] || nombre);
-  } else {
-    const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':'','Margen %':''};
-    DATA.productos.push(obj);
-    ok = await saveToSheet('Productos', 'agregar', obj);
-  }
+  const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':'','Margen %':''};
+  DATA.productos.push(obj);
+  await saveToSheet('Productos', 'agregar', obj);
   closeModal('modal-producto');
-  renderProductos(searchVal('productos-search'));
-  if (ok) toast('✓ Producto guardado en Sheet');
+  renderProductos();
+  toast('✓ Producto guardado en Sheet');
   document.getElementById('np-nombre').value='';
   document.getElementById('np-precio').value='';
   document.getElementById('np-rev').value='';
@@ -928,15 +933,12 @@ async function guardarProducto() {
 // ── MATERIAS PRIMAS ──
 function renderMaterias(f='') {
   const el = document.getElementById('materias-list');
-  const list = DATA.materias.filter(m=>!f||normalizar(m['Nombre']).includes(normalizar(f)));
-  if (!list.length) { el.innerHTML=estadoVacio('MPrimas','Sin resultados'); return; }
+  const list = DATA.materias.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
+  if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
   el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m)=>`
-    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${fmtDate(m['Última actualización'])}</div></div>
+    <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${m['Última actualización']||''}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio por unidad ($)'])}</div>
-    <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
-      <button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>
-      <button class="badge badge-red" onclick="borrarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Borrar</button>
-    </div></div></div>`
+    <button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
   ).join('') + '</div>';
 }
 function filtrarMaterias(v) { renderMaterias(v); }
@@ -956,62 +958,40 @@ async function guardarMateria() {
   const precio = document.getElementById('nm-precio').value;
   const unidad = document.getElementById('nm-unidad').value;
   if (!nombre||!precio) { toast('Completá todos los campos','error'); return; }
-  const idx = DATA.materias.findIndex(m=>normalizar(m['Nombre'])===normalizar(nombre));
+  const idx = DATA.materias.findIndex(m=>m['Nombre']?.toLowerCase()===nombre.toLowerCase());
   const obj = {'Nombre':nombre,'Precio por unidad ($)':Number(precio),'Unidad':unidad,'Última actualización':today()};
-  let ok;
   if (idx>=0) {
     DATA.materias[idx]=obj;
-    ok = await saveToSheet('MPrimas', 'actualizar', obj, 'Nombre', DATA.materias[idx]['Nombre'] || nombre);
+    await saveToSheet('MPrimas', 'actualizar', obj, 'Nombre', nombre);
   } else {
     DATA.materias.push(obj);
-    ok = await saveToSheet('MPrimas', 'agregar', obj);
+    await saveToSheet('MPrimas', 'agregar', obj);
   }
   DATA.materias.sort((a,b)=>a['Nombre'].localeCompare(b['Nombre']));
   closeModal('modal-materia');
-  renderMaterias(searchVal('materias-search'));
-  if (ok) toast('✓ Materia prima guardada en Sheet');
-  // Si ok es false, saveToSheet ya mostró el toast de error — no mentimos con un success extra.
-}
-
-async function borrarMateria(nombre) {
-  if (!confirm(`¿Borrar "${nombre}" de materias primas? Esto elimina TODAS las filas con ese nombre en el Sheet (útil para limpiar duplicados).`)) return;
-  const ok = await saveToSheet('MPrimas', 'eliminar', {}, 'Nombre', nombre);
-  if (ok) {
-    DATA.materias = DATA.materias.filter(m => normalizar(m['Nombre']) !== normalizar(nombre));
-    renderMaterias(searchVal('materias-search'));
-    toast('✓ Materia prima borrada del Sheet');
-  }
+  renderMaterias();
+  toast('✓ Materia prima guardada en Sheet');
 }
 
 // ── RECETAS ──
 function renderRecetas(f='') {
   const el = document.getElementById('recetas-list');
-  const prods = [...new Set(DATA.recetas.map(r=>r['Producto']))].filter(p=>!f||normalizar(p).includes(normalizar(f)));
-  if (!prods.length) { el.innerHTML=estadoVacio('Recetas','Sin recetas cargadas. Tocá + para agregar.'); return; }
+  const prods = [...new Set(DATA.recetas.map(r=>r['Producto']))].filter(p=>!f||p.toLowerCase().includes(f.toLowerCase()));
+  if (!prods.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin recetas cargadas. Tocá + para agregar.</div>'; return; }
   el.innerHTML = prods.map(prod=>{
     const ings = DATA.recetas.filter(r=>r['Producto']===prod);
     const c = calcularCosto(prod);
-    const problema = costoTieneProblema(prod);
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div style="font-weight:600;font-size:15px;">${prod}${problema?' <span title="Hay una cantidad o ingrediente sin cargar bien — revisá esta receta" style="color:var(--danger);font-size:12px;">⚠</span>':''}</div>
+        <div style="font-weight:600;font-size:15px;">${prod}</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="color:var(--accent);font-weight:600;">${c!==null?fmt(c):'—'}</div>
           <button onclick="editarReceta('${prod.replace(/'/g,"\'")}')" style="background:var(--gold-light);color:var(--gold);border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">Editar</button>
-          <button onclick="borrarReceta('${prod.replace(/'/g,"\'")}')" style="background:var(--danger-light);color:var(--danger);border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">Borrar</button>
         </div>
       </div>
       ${ings.map(ing=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="color:var(--text2);">${ing['Ingrediente']}</span><span style="color:var(--text3);">${ing['Cantidad']} ${ing['Unidad']||''}</span></div>`).join('')}
     </div>`;
   }).join('');
-}
-
-async function borrarReceta(prod) {
-  if (!confirm(`¿Borrar la receta completa de "${prod}"?`)) return;
-  DATA.recetas = DATA.recetas.filter(r => r['Producto'] !== prod);
-  const ok = await reemplazarHoja('Recetas', DATA.recetas);
-  renderRecetas(searchVal('recetas-search'));
-  if (ok) toast('✓ Receta borrada del Sheet');
 }
 
 function editarReceta(prod) {
@@ -1073,10 +1053,10 @@ async function guardarReceta() {
   });
   // Guardar receta completa en Sheet (reemplaza las filas de este producto)
   const todasLasRecetas = DATA.recetas;
-  const ok = await reemplazarHoja('Recetas', todasLasRecetas);
+  await reemplazarHoja('Recetas', todasLasRecetas);
   closeModal('modal-receta');
-  renderRecetas(searchVal('recetas-search'));
-  if (ok) toast('✓ Receta guardada en Sheet');
+  renderRecetas();
+  toast('✓ Receta guardada en Sheet');
 }
 
 // ── VENTAS ──
