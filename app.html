@@ -166,6 +166,12 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .mix-bar .seg-a { background: var(--accent); }
 .mix-bar .seg-b { background: var(--gold); }
 .mix-legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); }
+
+.hist-item { display: flex; align-items: center; gap: 6px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.hist-item:last-child { border-bottom: none; padding-bottom: 0; }
+.hist-item .hist-info { display: flex; justify-content: space-between; align-items: center; flex: 1; min-width: 0; gap: 10px; }
+.del-venta-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; padding: 6px 2px; flex-shrink: 0; }
+.del-venta-btn:active { color: var(--danger); transform: scale(0.9); }
 </style>
 </head>
 <body>
@@ -456,6 +462,7 @@ const BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out
 let DATA = { materias:[], productos:[], recetas:[], ventas:[], usuarios:[], packaging:[] };
 let dolarMEP = null;
 let currentUser = null;
+let historialActual = [];
 
 // ── AUTH ──
 function checkAuth() {
@@ -807,6 +814,7 @@ function filtrarHistorial() {
   if (metodo) ventas = ventas.filter(v => v['Método de pago'] === metodo);
 
   ventas.sort((a,b) => b['Fecha']?.localeCompare(a['Fecha']));
+  historialActual = ventas;
 
   const el = document.getElementById('historial-list');
   const subtotal = document.getElementById('historial-subtotal');
@@ -824,22 +832,47 @@ function filtrarHistorial() {
   document.getElementById('hist-gan').textContent = fmt(ganTotal);
   subtotal.style.display = 'flex';
 
-  el.innerHTML = '<div class="card" style="padding:0 14px;">' + ventas.map(v => {
+  const esAdmin = currentUser?.rol === 'admin';
+
+  el.innerHTML = '<div class="card" style="padding:0 14px;">' + ventas.map((v,i) => {
     const fecha = v['Fecha']?.split('T')[0] || v['Fecha'] || '—';
     const partes = fecha.split('-');
     const fechaStr = partes.length===3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fecha;
     const gan = Number(v['Ganancia ($)'])||0;
-    return `<div class="list-item">
-      <div>
-        <div class="name">${v['Producto']||'—'}</div>
-        <div class="meta">${fechaStr} · ${v['Tipo cliente']||''} · ${v['Método de pago']||''} · x${v['Cantidad']||1}</div>
+    return `<div class="hist-item">
+      <div class="hist-info">
+        <div>
+          <div class="name">${v['Producto']||'—'}</div>
+          <div class="meta">${fechaStr} · ${v['Tipo cliente']||''} · ${v['Método de pago']||''} · x${v['Cantidad']||1}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="price">${fmt(v['Ingreso ($)'])}</div>
+          <div class="margin">${fmt(gan)}</div>
+        </div>
       </div>
-      <div style="text-align:right;">
-        <div class="price">${fmt(v['Ingreso ($)'])}</div>
-        <div class="margin">${fmt(gan)}</div>
-      </div>
+      ${esAdmin ? `<button class="del-venta-btn" onclick="eliminarVenta(${i})" title="Eliminar venta">🗑️</button>` : ''}
     </div>`;
   }).join('') + '</div>';
+}
+
+async function eliminarVenta(i) {
+  const venta = historialActual[i];
+  if (!venta) return;
+  const fecha = venta['Fecha']?.split('T')[0] || venta['Fecha'] || '';
+  const partes = fecha.split('-');
+  const fechaStr = partes.length===3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fecha;
+  const ok = confirm(`¿Eliminar esta venta?\n\n${venta['Producto']||'—'} · ${fechaStr} · ${fmt(venta['Ingreso ($)'])}\n\nEsta acción no se puede deshacer.`);
+  if (!ok) return;
+  const idx = DATA.ventas.indexOf(venta);
+  if (idx === -1) { toast('No se encontró la venta','error'); return; }
+  DATA.ventas.splice(idx, 1);
+  await reemplazarHoja('Ventas', DATA.ventas);
+  toast('✓ Venta eliminada');
+  filtrarHistorial();
+  renderInicio();
+  const activeScreen = document.querySelector('.screen.active')?.id?.replace('screen-','');
+  if (activeScreen === 'dashboard') renderDashboard();
+  if (activeScreen === 'resumen') renderResumen();
 }
 
 function renderInicio() {
