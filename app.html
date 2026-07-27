@@ -370,6 +370,15 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <button class="btn btn-secondary" onclick="openModal('modal-usuario')">+ Nuevo usuario</button>
   </div>
 
+  <div class="admin-only">
+    <div class="section-label" style="margin-top:24px;">Chequeo de integridad</div>
+    <div class="card">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">Revisa duplicados, ingredientes de receta sin precio, productos sin costo y otros problemas en los datos.</div>
+      <button class="btn btn-secondary" onclick="renderChequeo()">Revisar todo</button>
+      <div id="chequeo-resultado" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
   <div class="section-label" style="margin-top:24px;">Acerca de</div>
   <div class="card">
     <div style="font-size:13px;color:var(--text2);line-height:1.7;">
@@ -746,6 +755,95 @@ async function eliminarPackaging(nombre) {
   await reemplazarHoja('Packaging', DATA.packaging);
   renderPackaging();
   toast('✓ Packaging eliminado');
+}
+
+// ── CHEQUEO DE INTEGRIDAD ──
+function chequeoIntegridad() {
+  const resultados = [];
+
+  function dupCheck(arr, key) {
+    const counts = {};
+    arr.forEach(x => { const k = (x[key] || '').toString().trim().toLowerCase(); counts[k] = (counts[k] || 0) + 1; });
+    return Object.entries(counts).filter(([k, c]) => c > 1 && k).map(([k, c]) => k + ' (x' + c + ')');
+  }
+  const productosDup = dupCheck(DATA.productos, 'Nombre');
+  const materiasDup = dupCheck(DATA.materias, 'Nombre');
+  const packagingDup = dupCheck(DATA.packaging, 'Nombre');
+  resultados.push({
+    titulo: 'Nombres duplicados',
+    ok: !productosDup.length && !materiasDup.length && !packagingDup.length,
+    detalle: [
+      productosDup.length ? ('Productos: ' + productosDup.join(', ')) : null,
+      materiasDup.length ? ('Materias: ' + materiasDup.join(', ')) : null,
+      packagingDup.length ? ('Packaging: ' + packagingDup.join(', ')) : null,
+    ].filter(Boolean)
+  });
+
+  const matNames = new Set(DATA.materias.map(m => m['Nombre'].toLowerCase().trim()));
+  const packNames = new Set(DATA.packaging.map(p => p['Nombre'].toLowerCase().trim()));
+  const rotos = [...new Set(DATA.recetas.map(r => r['Ingrediente']))].filter(i => {
+    const k = (i || '').toLowerCase().trim();
+    return !matNames.has(k) && !packNames.has(k);
+  });
+  resultados.push({ titulo: 'Ingredientes de receta sin precio (nombre no coincide)', ok: !rotos.length, detalle: rotos });
+
+  const recProdNames = new Set(DATA.recetas.map(r => r['Producto']));
+  const sinReceta = DATA.productos.filter(p => !recProdNames.has(p['Nombre'])).map(p => p['Nombre']);
+  resultados.push({ titulo: 'Productos sin receta cargada', ok: !sinReceta.length, detalle: sinReceta });
+
+  const prodNames = new Set(DATA.productos.map(p => p['Nombre']));
+  const huerfanas = [...recProdNames].filter(n => !prodNames.has(n));
+  resultados.push({ titulo: 'Recetas de productos que ya no existen', ok: !huerfanas.length, detalle: huerfanas });
+
+  const costoCero = [], margenNegativo = [];
+  DATA.productos.forEach(p => {
+    let c; try { c = calcularCosto(p['Nombre']); } catch (e) { c = null; }
+    const precio = Number(p['Precio Final ($)']) || 0;
+    if (typeof c === 'number') {
+      if (c === 0) costoCero.push(p['Nombre']);
+      else if (precio > 0 && c > precio) margenNegativo.push(p['Nombre'] + ' (costo ' + fmt(c) + ' > precio ' + fmt(precio) + ')');
+    }
+  });
+  resultados.push({ titulo: 'Costo en cero', ok: !costoCero.length, detalle: costoCero });
+  resultados.push({ titulo: 'Margen negativo (costo mayor al precio)', ok: !margenNegativo.length, detalle: margenNegativo });
+
+  const materiasSinPrecio = DATA.materias.filter(m => !(Number(m['Precio por unidad ($)']) > 0)).map(m => m['Nombre']);
+  const packagingSinPrecio = DATA.packaging.filter(p => !(Number(p['Precio $ unitario']) > 0)).map(p => p['Nombre']);
+  const productosSinPrecio = DATA.productos.filter(p => !(Number(p['Precio Final ($)']) > 0)).map(p => p['Nombre']);
+  resultados.push({
+    titulo: 'Precios en cero o inválidos',
+    ok: !materiasSinPrecio.length && !packagingSinPrecio.length && !productosSinPrecio.length,
+    detalle: [
+      materiasSinPrecio.length ? ('Materias: ' + materiasSinPrecio.join(', ')) : null,
+      packagingSinPrecio.length ? ('Packaging: ' + packagingSinPrecio.join(', ')) : null,
+      productosSinPrecio.length ? ('Productos: ' + productosSinPrecio.join(', ')) : null,
+    ].filter(Boolean)
+  });
+
+  const cantidadesRaras = DATA.recetas.filter(r => !(Number(r['Cantidad']) > 0)).map(r => r['Producto'] + ' → ' + r['Ingrediente']);
+  resultados.push({ titulo: 'Cantidades inválidas en recetas (cero o negativas)', ok: !cantidadesRaras.length, detalle: cantidadesRaras });
+
+  return resultados;
+}
+
+function renderChequeo() {
+  const el = document.getElementById('chequeo-resultado');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Revisando...</div>';
+  setTimeout(() => {
+    const resultados = chequeoIntegridad();
+    const totalProblemas = resultados.reduce((s, r) => s + (r.ok ? 0 : (r.detalle.length || 1)), 0);
+    let html = `<div style="text-align:center;margin-bottom:14px;font-weight:600;font-size:15px;color:${totalProblemas ? 'var(--danger)' : 'var(--accent)'};">${totalProblemas ? '⚠️ Se encontraron ' + totalProblemas + ' problema(s)' : '✓ Todo en orden'}</div>`;
+    html += resultados.map(r => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span>${r.ok ? '✅' : '⚠️'}</span>
+          <span style="font-weight:500;font-size:13.5px;">${r.titulo}</span>
+        </div>
+        ${!r.ok ? `<div style="margin-top:6px;margin-left:24px;font-size:12.5px;color:var(--text2);">${r.detalle.slice(0, 15).map(d => `• ${d}`).join('<br>')}${r.detalle.length > 15 ? `<br>… y ${r.detalle.length - 15} más` : ''}</div>` : ''}
+      </div>`).join('');
+    html += `<div style="margin-top:10px;font-size:11px;color:var(--text3);text-align:center;">Último chequeo: ${new Date().toLocaleString('es-AR')}</div>`;
+    el.innerHTML = html;
+  }, 150);
 }
 
 function editarPackaging(nombre) {
