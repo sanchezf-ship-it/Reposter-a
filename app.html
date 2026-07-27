@@ -212,7 +212,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <div class="card" style="padding:4px 0;">
     <div class="list-item" style="padding:14px 16px;"><div><div class="name">Cargar venta</div><div class="meta">Registrá lo que vendiste</div></div><button class="btn btn-primary btn-sm" onclick="showScreen('ventas')">Ir →</button></div>
     <div class="list-item admin-only" style="padding:14px 16px;"><div><div class="name">Actualizar materia prima</div><div class="meta">Cuando cambia el precio</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('materias')">Ir →</button></div>
-    <div class="list-item admin-only" style="padding:14px 16px;border:none;"><div><div class="name">Nuevo producto</div><div class="meta">Agregar a la lista</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('productos');setTimeout(()=>openModal('modal-producto'),200)">Ir →</button></div>
+    <div class="list-item admin-only" style="padding:14px 16px;border:none;"><div><div class="name">Nuevo producto</div><div class="meta">Agregar a la lista</div></div><button class="btn btn-secondary btn-sm" onclick="showScreen('productos');setTimeout(()=>nuevoProducto(),200)">Ir →</button></div>
   </div>
 </div>
 
@@ -300,7 +300,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <input type="text" placeholder="Buscar producto..." oninput="filtrarProductos(this.value)">
   </div>
   <div id="productos-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
-  <button class="fab admin-fab" onclick="openModal('modal-producto')">+</button>
+  <button class="fab admin-fab" onclick="nuevoProducto()">+</button>
 </div>
 
 <!-- RECETAS -->
@@ -320,7 +320,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <input type="text" placeholder="Buscar ingrediente..." oninput="filtrarMaterias(this.value)">
   </div>
   <div id="materias-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
-  <button class="fab" onclick="openModal('modal-materia')">+</button>
+  <button class="fab" onclick="nuevaMateria()">+</button>
 </div>
 
 <!-- PACKAGING -->
@@ -330,7 +330,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <input type="text" placeholder="Buscar packaging..." oninput="filtrarPackaging(this.value)">
   </div>
   <div id="packaging-list"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
-  <button class="fab" onclick="openModal('modal-packaging')">+</button>
+  <button class="fab" onclick="nuevoPackaging()">+</button>
 </div>
 
 <!-- RESUMEN -->
@@ -384,7 +384,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="modal-producto" class="modal-bg" onclick="if(event.target===this)closeModal('modal-producto')">
   <div class="modal">
     <div class="modal-handle"></div>
-    <h2>Nuevo producto</h2>
+    <h2 id="modal-producto-title">Nuevo producto</h2>
     <div class="form-group"><label>Nombre</label><input type="text" id="np-nombre" placeholder="Ej: Rogel mega"></div>
     <div class="form-row">
       <div class="form-group"><label>Precio venta ($)</label><input type="number" id="np-precio" placeholder="0" oninput="document.getElementById('np-rev').placeholder=Math.round(this.value*0.8)||'Auto'"></div>
@@ -742,6 +742,14 @@ function editarPackaging(nombre) {
   openModal('modal-packaging');
 }
 
+function nuevoPackaging() {
+  document.getElementById('modal-packaging-title').textContent = 'Packaging';
+  document.getElementById('npk-nombre').value = '';
+  document.getElementById('npk-precio').value = '';
+  document.getElementById('npk-unidad').value = 'u';
+  openModal('modal-packaging');
+}
+
 async function guardarPackaging() {
   const nombre = document.getElementById('npk-nombre').value.trim();
   const precio = document.getElementById('npk-precio').value;
@@ -760,6 +768,9 @@ async function guardarPackaging() {
   closeModal('modal-packaging');
   renderPackaging();
   toast('✓ Packaging guardado en Sheet');
+  document.getElementById('npk-nombre').value='';
+  document.getElementById('npk-precio').value='';
+  document.getElementById('npk-unidad').value='u';
 }
 
 function addPkgRow() {
@@ -920,10 +931,28 @@ function renderProductos(f='') {
     const costo = c!==null ? c : Number(p['Costo ($)'])||0;
     const precio = Number(p['Precio Final ($)'])||0;
     const margen = precio>0&&costo>0 ? Math.round((precio-costo)/precio*100) : null;
-    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div><div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}</div></div>`;
+    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div><div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}<button class="badge badge-gold" onclick="editarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`;
   }).join('') + '</div>';
 }
 function filtrarProductos(v) { renderProductos(v); }
+
+function editarProducto(nombre) {
+  const p = DATA.productos.find(x => x['Nombre'] === nombre);
+  if (!p) return;
+  document.getElementById('modal-producto-title').textContent = 'Editar: '+p['Nombre'];
+  document.getElementById('np-nombre').value = p['Nombre'];
+  document.getElementById('np-precio').value = p['Precio Final ($)'];
+  document.getElementById('np-rev').value = p['Precio Revendedor ($)'];
+  openModal('modal-producto');
+}
+
+function nuevoProducto() {
+  document.getElementById('modal-producto-title').textContent = 'Nuevo producto';
+  document.getElementById('np-nombre').value = '';
+  document.getElementById('np-precio').value = '';
+  document.getElementById('np-rev').value = '';
+  openModal('modal-producto');
+}
 
 
 // ── GUARDAR EN SHEET ──
@@ -952,9 +981,15 @@ async function guardarProducto() {
   const precio = document.getElementById('np-precio').value;
   const rev = document.getElementById('np-rev').value || Math.round(precio*0.8);
   if (!nombre||!precio) { toast('Completá nombre y precio','error'); return; }
+  const idx = DATA.productos.findIndex(p=>p['Nombre']?.toLowerCase()===nombre.toLowerCase());
   const obj = {'Nombre':nombre,'Precio Final ($)':Number(precio),'Precio Revendedor ($)':Number(rev),'Costo ($)':'','Margen %':''};
-  DATA.productos.push(obj);
-  await saveToSheet('Productos', 'agregar', obj);
+  if (idx>=0) {
+    DATA.productos[idx]=obj;
+    await saveToSheet('Productos', 'actualizar', obj, 'Nombre', nombre);
+  } else {
+    DATA.productos.push(obj);
+    await saveToSheet('Productos', 'agregar', obj);
+  }
   closeModal('modal-producto');
   renderProductos();
   toast('✓ Producto guardado en Sheet');
@@ -986,6 +1021,14 @@ function editarMateria(nombre) {
   openModal('modal-materia');
 }
 
+function nuevaMateria() {
+  document.getElementById('modal-materia-title').textContent = 'Materia prima';
+  document.getElementById('nm-nombre').value = '';
+  document.getElementById('nm-precio').value = '';
+  document.getElementById('nm-unidad').value = 'kg';
+  openModal('modal-materia');
+}
+
 async function guardarMateria() {
   const nombre = document.getElementById('nm-nombre').value.trim();
   const precio = document.getElementById('nm-precio').value;
@@ -1004,6 +1047,9 @@ async function guardarMateria() {
   closeModal('modal-materia');
   renderMaterias();
   toast('✓ Materia prima guardada en Sheet');
+  document.getElementById('nm-nombre').value='';
+  document.getElementById('nm-precio').value='';
+  document.getElementById('nm-unidad').value='kg';
 }
 
 // ── RECETAS ──
