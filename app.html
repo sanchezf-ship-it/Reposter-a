@@ -724,13 +724,29 @@ function renderPackaging(f='') {
   const el = document.getElementById('packaging-list');
   const list = DATA.packaging.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
   if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin packaging cargado</div>'; return; }
-  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(m=>`
+  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map(m=>{
+    const esAdmin = currentUser?.rol === 'admin';
+    return `
     <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||'u'} · ${m['Última actualización']||''}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio $ unitario']||m['Precio ($)'])}</div>
-    <button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
-  ).join('') + '</div>';
+    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px;"><button class="badge badge-gold" onclick="editarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>${esAdmin?`<button onclick="eliminarPackaging('${m['Nombre'].replace(/'/g,"\\'")}')" title="Eliminar packaging" style="background:none;border:none;cursor:pointer;font-size:14px;">🗑️</button>`:''}</div></div></div>`;
+  }).join('') + '</div>';
 }
 function filtrarPackaging(v) { renderPackaging(v); }
+
+async function eliminarPackaging(nombre) {
+  const enUso = [...new Set(DATA.recetas.filter(r => r['Ingrediente']?.toLowerCase() === nombre.toLowerCase()).map(r => r['Producto']))];
+  if (enUso.length) {
+    alert(`No se puede eliminar "${nombre}": lo usan ${enUso.length} producto(s):\n\n${enUso.join(', ')}\n\nQuitalo primero de esas recetas.`);
+    return;
+  }
+  const ok = confirm(`¿Eliminar el packaging "${nombre}"?\n\nEsta acción no se puede deshacer.`);
+  if (!ok) return;
+  DATA.packaging = DATA.packaging.filter(x => x['Nombre'] !== nombre);
+  await reemplazarHoja('Packaging', DATA.packaging);
+  renderPackaging();
+  toast('✓ Packaging eliminado');
+}
 
 function editarPackaging(nombre) {
   const m = DATA.packaging.find(x => x['Nombre'] === nombre);
@@ -931,10 +947,25 @@ function renderProductos(f='') {
     const costo = c!==null ? c : Number(p['Costo ($)'])||0;
     const precio = Number(p['Precio Final ($)'])||0;
     const margen = precio>0&&costo>0 ? Math.round((precio-costo)/precio*100) : null;
-    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div><div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}<button class="badge badge-gold" onclick="editarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`;
+    const esAdmin = currentUser?.rol === 'admin';
+    return `<div class="list-item"><div><div class="name">${p['Nombre']}</div><div class="meta">Costo: ${fmt(costo)}${c!==null?' · desde receta':''}</div></div><div style="text-align:right;"><div class="price">${fmt(precio)}</div>${margen!==null?`<div class="margin${margen<0?' neg':''}">${margen}%</div>`:''}<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px;"><button class="badge badge-gold" onclick="editarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>${esAdmin?`<button onclick="eliminarProducto('${p['Nombre'].replace(/'/g,"\\'")}')" title="Eliminar producto" style="background:none;border:none;cursor:pointer;font-size:14px;">🗑️</button>`:''}</div></div></div>`;
   }).join('') + '</div>';
 }
 function filtrarProductos(v) { renderProductos(v); }
+
+async function eliminarProducto(nombre) {
+  const p = DATA.productos.find(x => x['Nombre'] === nombre);
+  if (!p) return;
+  const nIngredientes = DATA.recetas.filter(r => r['Producto'] === nombre).length;
+  const ok = confirm(`¿Eliminar "${nombre}"?\n\nPrecio: ${fmt(p['Precio Final ($)'])}${nIngredientes?`\nEsto también borra su receta (${nIngredientes} ingrediente(s)).`:''}\n\nEsta acción no se puede deshacer.`);
+  if (!ok) return;
+  DATA.productos = DATA.productos.filter(x => x['Nombre'] !== nombre);
+  DATA.recetas = DATA.recetas.filter(r => r['Producto'] !== nombre);
+  await reemplazarHoja('Productos', DATA.productos);
+  await reemplazarHoja('Recetas', DATA.recetas);
+  renderProductos();
+  toast('✓ Producto eliminado');
+}
 
 function editarProducto(nombre) {
   const p = DATA.productos.find(x => x['Nombre'] === nombre);
@@ -1003,13 +1034,29 @@ function renderMaterias(f='') {
   const el = document.getElementById('materias-list');
   const list = DATA.materias.filter(m=>!f||m['Nombre']?.toLowerCase().includes(f.toLowerCase()));
   if (!list.length) { el.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">Sin resultados</div>'; return; }
-  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m)=>`
+  el.innerHTML = '<div class="card" style="padding:0 16px;">' + list.map((m)=>{
+    const esAdmin = currentUser?.rol === 'admin';
+    return `
     <div class="list-item"><div><div class="name">${m['Nombre']}</div><div class="meta">${m['Unidad']||''} · ${m['Última actualización']||''}</div></div>
     <div style="text-align:right;"><div class="price">${fmt(m['Precio por unidad ($)'])}</div>
-    <button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;margin-top:4px;">Editar</button></div></div>`
-  ).join('') + '</div>';
+    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px;"><button class="badge badge-gold" onclick="editarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" style="cursor:pointer;border:none;">Editar</button>${esAdmin?`<button onclick="eliminarMateria('${m['Nombre'].replace(/'/g,"\\'")}')" title="Eliminar materia prima" style="background:none;border:none;cursor:pointer;font-size:14px;">🗑️</button>`:''}</div></div></div>`;
+  }).join('') + '</div>';
 }
 function filtrarMaterias(v) { renderMaterias(v); }
+
+async function eliminarMateria(nombre) {
+  const enUso = [...new Set(DATA.recetas.filter(r => r['Ingrediente']?.toLowerCase() === nombre.toLowerCase()).map(r => r['Producto']))];
+  if (enUso.length) {
+    alert(`No se puede eliminar "${nombre}": la usan ${enUso.length} producto(s):\n\n${enUso.join(', ')}\n\nQuitala primero de esas recetas.`);
+    return;
+  }
+  const ok = confirm(`¿Eliminar la materia prima "${nombre}"?\n\nEsta acción no se puede deshacer.`);
+  if (!ok) return;
+  DATA.materias = DATA.materias.filter(x => x['Nombre'] !== nombre);
+  await reemplazarHoja('MPrimas', DATA.materias);
+  renderMaterias();
+  toast('✓ Materia prima eliminada');
+}
 
 function editarMateria(nombre) {
   const m = DATA.materias.find(x => x['Nombre'] === nombre);
